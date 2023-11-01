@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(ggplot2)
+library(wordcloud2)
 ```
 
 There is an inclusion criteria for our analysis:
@@ -60,8 +61,6 @@ one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
 
 We could see that there are numerous variables about games. It is hard to show all keyword's distribution, but it might be possible to analyze the frequency of keywords.
 
-Using release date to see trend of some interesting keywords. 
-
 Show overall frequency of keywords(genre, categories, tags)
 ```{r}
 categories_freq = df|>
@@ -106,6 +105,8 @@ tags_freq = df|>
 tags_freq
 ```
 
+Also, we try to use wordcloud to help visualize the the frequency in genres. 
+
 popular definition: we will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
 We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the lastest time for refund)
 ```{r}
@@ -116,3 +117,27 @@ df_popular = df|>
   subset(median_playtime_forever > 120)
 ```
 
+```{r}
+df_unpopular = anti_join(df, df_popular, by="app_id")
+```
+
+```{r}
+popular_tags_wordcloud = df_popular|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+
+popular_tags_wordcloud
+```
+
+```{r}
+unpopular_tags_wordcloud = df_unpopular|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+
+unpopular_tags_wordcloud
+```
+```
