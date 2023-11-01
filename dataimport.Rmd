@@ -5,13 +5,14 @@ date: "2023-11-01"
 output: html_document
 ---
 
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
 There is an inclusion criteria for our analysis:
 
 We will exclude free games from our analysis. This decision is based on the fact that in free games, in-app purchases often serve as alternatives to traditional game sales. However, since we lack access to data regarding these in-app purchases, including such games in our analysis would be both impractical and imprecise.
-
-```{r}
-library(tidyverse)
-```
 
 We will remove columns that contain URLs, as they do not provide useful information for our analysis.
 
@@ -36,14 +37,14 @@ df = df|>
 
 summarize categories, genres, tags to one column keywords, which facilitate one hot encoding them. 
 ```{r}
-df = df|>
+df_concat = df|>
   mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
   subset(select = -c(categories, genres, tags))
 ```
 
 Then, we use one-hot encoding to change keywords to binary variables. 
 ```{r}
-keywords_df = df|>
+keywords_df = df_concat|>
   subset(select = c(app_id, keywords))|>
   separate_rows(keywords, sep = ",")|>
   distinct(app_id, keywords, .keep_all = TRUE)|>
@@ -51,7 +52,7 @@ keywords_df = df|>
   subset(keywords != "")|>
   pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
 
-one_hot_encoded_df = left_join(df, keywords_df, by = "app_id")
+one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
 ```
 
 
@@ -62,6 +63,56 @@ We could see that there are numerous variables about games. It is hard to show a
 Using release date to see trend of some interesting keywords. 
 
 Show overall frequency of keywords(genre, categories, tags)
+```{r}
+categories_freq = df|>
+  separate_rows(categories, sep = ",")|>
+  group_by(categories)|>
+  summarise(n_obs = n())|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(categories, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+categories_freq
+```
 
 ```{r}
+genre_freq = df|>
+  separate_rows(genres, sep = ",")|>
+  group_by(genres)|>
+  summarise(n_obs = n())|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(genres, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+genre_freq
 ```
+
+```{r}
+tags_freq = df|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  subset(n_obs >= 5000)|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(tags, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+tags_freq
+```
+
+popular definition: we will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
+We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the lastest time for refund)
+```{r}
+df_popular = df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.8)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(median_playtime_forever > 120)
+```
+
