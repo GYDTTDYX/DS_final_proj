@@ -1,0 +1,67 @@
+---
+title: "data_import_n_cleaning"
+author: "Yuxuan Du"
+date: "2023-11-01"
+output: html_document
+---
+
+There is an inclusion criteria for our analysis:
+
+We will exclude free games from our analysis. This decision is based on the fact that in free games, in-app purchases often serve as alternatives to traditional game sales. However, since we lack access to data regarding these in-app purchases, including such games in our analysis would be both impractical and imprecise.
+
+```{r}
+library(tidyverse)
+```
+
+We will remove columns that contain URLs, as they do not provide useful information for our analysis.
+
+Additionally, we will filter out variables related to developers and publishers for two reasons: Firstly, we believe it is challenging, if not impossible, to make predictions using these features. Secondly, we assume that brand effects should be reflected through a combination of game features and keywords, thus including most of the brand impact.
+
+Furthermore, we will exclude the average and median playtime within two weeks, these variables is redundant since there are variables for average and median playtime over the game's lifetime, also these variables are biased toward games with high replay value and does not accurately reflect overall popularity.
+
+Lastly, we won't include the 'Full Audio Language' variable, as some games may not contain dialogue, making it irrelevant for our analysis.
+
+```{r}
+df = read.csv("DATA/games.csv")|>
+  janitor::clean_names()|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, full_audio_languages))|>
+  subset(price > 0)
+```
+
+Change the format of release date. 
+```{r}
+df = df|>
+  mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
+```
+
+summarize categories, genres, tags to one column keywords, which facilitate one hot encoding them. 
+```{r}
+df = df|>
+  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
+  subset(select = -c(categories, genres, tags))
+```
+
+Then, we use one-hot encoding to change keywords to binary variables. 
+```{r}
+keywords_df = df|>
+  subset(select = c(app_id, keywords))|>
+  separate_rows(keywords, sep = ",")|>
+  distinct(app_id, keywords, .keep_all = TRUE)|>
+  mutate(value = 1)|>
+  subset(keywords != "")|>
+  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
+
+one_hot_encoded_df = left_join(df, keywords_df, by = "app_id")
+```
+
+
+## EDA
+
+We could see that there are numerous variables about games. It is hard to show all keyword's distribution, but it might be possible to analyze the frequency of keywords.
+
+Using release date to see trend of some interesting keywords. 
+
+Show overall frequency of keywords(genre, categories, tags)
+
+```{r}
+```
