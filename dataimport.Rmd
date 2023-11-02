@@ -115,29 +115,42 @@ df_popular = df|>
   subset(positive/(positive+negative) > 0.8)|>
   subset(estimated_owners != "0 - 20000")|>
   subset(median_playtime_forever > 120)
-```
 
-```{r}
 df_unpopular = anti_join(df, df_popular, by="app_id")
-```
 
-```{r}
+overwhelm_popular_wordcloud = df|>
+  subset((positive+negative) > 500)|>
+  subset(positive/(positive+negative) > 0.95)|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+
 popular_tags_wordcloud = df_popular|>
   separate_rows(tags, sep = ",")|>
   group_by(tags)|>
   summarise(n_obs = n())|>
   wordcloud2()
 
-popular_tags_wordcloud
-```
-
-```{r}
 unpopular_tags_wordcloud = df_unpopular|>
   separate_rows(tags, sep = ",")|>
   group_by(tags)|>
   summarise(n_obs = n())|>
   wordcloud2()
+```
 
+```{r}
+overwhelm_popular_wordcloud
+popular_tags_wordcloud
 unpopular_tags_wordcloud
 ```
-```
+
+We can observe differences among the three word clouds above.
+
+Firstly, casual games are prevalent among popular games but not as common in unpopular games. This could be because casual games attract a larger user base, increasing the likelihood of meeting the popularity criteria.
+
+Simultaneously, we notice that the tag "difficult" appears more frequently in the word cloud for popular games. This aligns with reality, as some of the best games in history, such as Elden Ring and Sekiro: Shadows Die Twice, are known for their challenging gameplay.
+
+An interesting observation is that the ratio of 2D games to 3D games is higher in popular games compared to unpopular ones. This is reasonable since plot and game mechanics often take precedence in game development. Small studios may struggle to allocate sufficient resources to create high-quality 3D environments, prompting them to opt for 2D games more frequently. This contributes to the higher frequency of 2D games in the popular category.
+
+Furthermore, anime and cute are tags that exhibit a higher frequency in popular games. The exact reason for this trend is uncertain, but we plan to conduct a more in-depth analysis of games associated with these tags.
