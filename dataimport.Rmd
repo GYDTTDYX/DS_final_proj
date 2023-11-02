@@ -9,7 +9,10 @@ output: html_document
 library(tidyverse)
 library(ggplot2)
 library(wordcloud2)
+library(plotly)
 ```
+
+## Data import and cleaning
 
 There is an inclusion criteria for our analysis:
 
@@ -36,32 +39,31 @@ df = df|>
   mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
 ```
 
-summarize categories, genres, tags to one column keywords, which facilitate one hot encoding them. 
-```{r}
-df_concat = df|>
-  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
-  subset(select = -c(categories, genres, tags))
-```
-
-Then, we use one-hot encoding to change keywords to binary variables. 
-```{r}
-keywords_df = df_concat|>
-  subset(select = c(app_id, keywords))|>
-  separate_rows(keywords, sep = ",")|>
-  distinct(app_id, keywords, .keep_all = TRUE)|>
-  mutate(value = 1)|>
-  subset(keywords != "")|>
-  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
-
-one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
-```
-
-
 ## EDA
 
-We could see that there are numerous variables about games. It is hard to show all keyword's distribution, but it might be possible to analyze the frequency of keywords.
+### definition of popular games
+Since our project want to explore the key feature of popular games, it is necessary to first define the term "popular games":
+We will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
+We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the lastest time for refund)
 
-Show overall frequency of keywords(genre, categories, tags)
+```{r}
+df_popular = df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.8)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(median_playtime_forever > 120)
+
+df_unpopular = anti_join(df, df_popular, by="app_id")
+```
+
+### price distribution of popular and unpopular games
+```{r}
+summary(pull(df_popular, price))
+summary(pull(df_unpopular, price))
+```
+
+We could observe that the price of popular games are higher than unpopular games in every quadrilles. It is reasonable since game mechanics, animation effects, game optimization are important components of popular games, and these components are costly, which will leads to higher selling prices. 
+### Overall frequency of keywords(genre, categories, tags)
 ```{r}
 categories_freq = df|>
   separate_rows(categories, sep = ",")|>
@@ -105,19 +107,55 @@ tags_freq = df|>
 tags_freq
 ```
 
-Also, we try to use wordcloud to help visualize the the frequency in genres. 
+### Trend of keywords frequency across different years
 
-popular definition: we will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
-We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the lastest time for refund)
+It might be informative to visualize the trend change of game genre developed in different years since WOW might be good game at 2000s, while games like Overwatch might be better game in 2020s. 
+
 ```{r}
-df_popular = df|>
-  subset((positive+negative) > 10)|>
-  subset(positive/(positive+negative) > 0.8)|>
-  subset(estimated_owners != "0 - 20000")|>
-  subset(median_playtime_forever > 120)
+genre_freq_year = df|>
+  mutate(year = year(release_date))|>
+  separate_rows(genres, sep = ",")|>
+  group_by(year, genres)|>
+  summarise(n_obs = n())|>
+  group_by(year)
 
-df_unpopular = anti_join(df, df_popular, by="app_id")
+genre_freq_year_total = df|>
+  mutate(year = year(release_date))|>
+  separate_rows(genres, sep = ",")|>
+  group_by(year)|>
+  summarise(n_obs_total = n())
+  
 
+genre_freq_year_total|>
+  knitr::kable()
+```
+
+We could see from the table that there are very few games on steam before 2006, genre frequency might be strongly affected by randomness in those years, so we choose only to plot the trend after 2005. 
+```{r}
+#here we limit the year to later than 2002 since steam is lauched in 2002, we think the game before 2002 might be not representative. 
+left_join(genre_freq_year, genre_freq_year_total, by = "year")|>
+  subset(year > 2005)|>
+  mutate(genre_ratio = n_obs/n_obs_total)|>
+  ungroup()|>
+  plot_ly(x = ~year, y = ~genre_ratio, color = ~genres, type = "scatter", mode = "lines+markers",  colors = "viridis")
+```
+
+```{r}
+popular_genres_bar_plot = left_join(genre_freq_year, genre_freq_year_total, by = "year")|>
+  subset(year > 2005)|>
+  mutate(genre_ratio = n_obs/n_obs_total)|>
+  ggplot(aes(x = year, y = genre_ratio, fill = genres)) + 
+  geom_col(position = 'stack', width = 0.6)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))
+popular_genres_bar_plot
+```
+
+Observation 需要再加一下
+
+### Word Cloud visualization
+Wwordcloud could help visualize the the frequency of keywords in popular/unpopular games. 
+
+```{r}
 overwhelm_popular_wordcloud = df|>
   subset((positive+negative) > 500)|>
   subset(positive/(positive+negative) > 0.95)|>
@@ -154,3 +192,36 @@ Simultaneously, we notice that the tag "difficult" appears more frequently in th
 An interesting observation is that the ratio of 2D games to 3D games is higher in popular games compared to unpopular ones. This is reasonable since plot and game mechanics often take precedence in game development. Small studios may struggle to allocate sufficient resources to create high-quality 3D environments, prompting them to opt for 2D games more frequently. This contributes to the higher frequency of 2D games in the popular category.
 
 Furthermore, anime and cute are tags that exhibit a higher frequency in popular games. The exact reason for this trend is uncertain, but we plan to conduct a more in-depth analysis of games associated with these tags.
+
+## model fitting
+Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. 
+```{r}
+df_concat = df|>
+  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
+  subset(select = -c(categories, genres, tags))
+```
+
+```{r}
+keywords_df = df_concat|>
+  subset(select = c(app_id, keywords))|>
+  separate_rows(keywords, sep = ",")|>
+  distinct(app_id, keywords, .keep_all = TRUE)|>
+  mutate(value = 1)|>
+  subset(keywords != "")|>
+  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
+
+one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
+
+popular_encoded_df = one_hot_encoded_df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.8)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(median_playtime_forever > 120)|>
+  mutate(popular = 1)
+
+unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by="app_id")|>
+  mutate(popular = 0)
+
+encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|>
+  subset(select = -c(positive, negative, estimated_owners, median_playtime_forever, average_playtime_forever, recommendations, user_score))
+```
