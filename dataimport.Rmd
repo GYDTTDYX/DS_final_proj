@@ -14,6 +14,7 @@ library(glmnet)
 library(caret)
 library(pROC)
 library(randomForest)
+library(e1071)
 ```
 
 ## Data import and cleaning
@@ -215,7 +216,7 @@ An interesting observation is that the ratio of 2D games to 3D games is higher i
 Furthermore, anime and cute are tags that exhibit a higher frequency in popular games. The exact reason for this trend is uncertain, but we plan to conduct a more in-depth analysis of games associated with these tags.
 
 ## model fitting
-Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. 
+Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. Also, although most tags are completely descriptive words about the games, some of them might cause data leakage, we filter them out from the dataset. These tags includes: Masterpiece, Great Soundtrack, Addictive. It is easy to observe that they are conclusive words. Also, great_soundtrack, batman, tracked_motion_controller_support, tile_matching have no variance in the dataset, we decide to delete them
 ```{r}
 df_concat = df|>
   mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
@@ -244,7 +245,11 @@ unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by="app
   mutate(popular = 0)
 
 encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|>
-  subset(select = -c(positive, negative, estimated_owners, median_playtime_forever, average_playtime_forever, recommendations, user_score, peak_ccu, supported_languages, keywords))
+  janitor::clean_names()|>
+  subset(select = -c(positive, negative, estimated_owners, median_playtime_forever, average_playtime_forever, recommendations, user_score, peak_ccu, supported_languages, keywords, addictive, masterpiece, great_soundtrack, batman, tracked_motion_controller_support, tile_matching))|>
+  mutate(windows = as.integer(as.logical(windows)))|>
+  mutate(mac = as.integer(as.logical(mac)))|>
+  mutate(linux = as.integer(as.logical(linux)))
 
 dataset_without_id_name = encoded_with_label_df|>
   subset(select = -c(app_id, name, release_date))|>
@@ -261,6 +266,11 @@ train = dataset_without_id_name |>
   sample_frac(0.70)
 test = anti_join(dataset_without_id_name, train, by = 'id')
 
+train = train|>
+  subset(select = -c(id))
+
+test = test|>
+  subset(select = -c(id))
 
 train_x = train|>
   subset(select = -c(popular))
@@ -350,4 +360,64 @@ beta_df|>
   coord_flip()
 ```
 
-The tags of Batman is actually unexpected, since we thought it should be a category of games instead of a genre. Other tags are reasonable. It is weird that the tage Masterpiece has a negative weight towards popular games. 
+Tags are reasonable.
+
+### SVM
+```{r}
+train_x_log = train_x|>
+  mutate(price = log(price))
+
+train_y = train_y|>
+  factor()
+```
+
+```{r}
+svm_model = svm(train_x_log, train_y, kernel = "linear")
+```
+
+```{r}
+test_x_log = test_x|>
+  mutate(price = log(price))
+
+test_y = test_y|>
+  factor()
+```
+
+```{r}
+preicted_labels_svm = predict(svm_model, newdata = test_x_log)
+```
+
+```{r}
+preicted_labels_svm = preicted_labels_svm|>
+  data.frame()|>
+  mutate(actual_y = test_y)|>
+  mutate(different = abs(actual_y != preicted_labels_svm))
+```
+
+```{r}
+acc_svm = sum(pull(preicted_labels_svm, different))/nrow(preicted_labels_svm)
+```
+
+```{r}
+confusionMatrix(data=pull(preicted_labels_svm, preicted_labels_svm), reference = pull(preicted_labels_svm, actual_y))
+```
+
+```{r}
+svm_coef = data.frame(coef(svm_model))
+
+svm_coef_df = data.frame(tags = rownames(svm_coef),
+           coef = pull(svm_coef, coef.svm_model.))|>
+  mutate(abs_coef = abs(coef))|>
+  arrange(desc(abs_coef))
+```
+
+```{r}
+svm_coef_df|>
+  subset(tags != "(Intercept)")|>
+  head(30)|>
+  ggplot(aes(x = reorder(tags, +abs_coef), y = coef))+
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+
+We observed that there are some similar patterns between important feature extracted by Lasso and SVM. 
