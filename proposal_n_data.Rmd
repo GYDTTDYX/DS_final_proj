@@ -42,6 +42,8 @@ Also, we need to establish clear classification boundaries for popular and unpop
 
 Following that, we will explore suitable models for classifying games based on their distinct features. If the selected model offers interpretability, we will also analyze the importance of different features.
 
+A challange is that since the amount of popular games and unpopular games might be unbalance. We might need to find ways to reduce such unbalance. (maybe we need down sampling unpopular games)
+
 ## The planned timeline
 
 We already found dataset from Kaggle. The dataset use Steam API to get datas. They provide the code for using API so it is possible if we want to find latest dataset. 

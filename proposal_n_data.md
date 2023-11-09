@@ -61,6 +61,10 @@ based on their distinct features. If the selected model offers
 interpretability, we will also analyze the importance of different
 features.
 
+A challange is that since the amount of popular games and unpopular
+games might be unbalance. We might need to find ways to reduce such
+unbalance. (maybe we need down sampling unpopular games)
+
 ## The planned timeline
 
 We already found dataset from Kaggle. The dataset use Steam API to get
