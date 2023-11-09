@@ -5,8 +5,15 @@ Yuxuan Du
 
 ## group members
 
-Yuxuan Du: yd2739 Tara Zhan: fz2377 Yaduo Wang: yw4199 Chenshuo Pan
-：cp3384
+Yuxuan Du: yd2739
+
+Tara Zhan: fz2377
+
+Yaduo Wang: yw4199
+
+Chenshuo Pan ：cp3384
+
+Wenxin Tian: wt2369
 
 ## Tentative project title
 
