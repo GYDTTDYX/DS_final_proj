@@ -1,12 +1,15 @@
 ---
-title: "Proposal_n_DATA"
+title: "Proposal"
 author: "Yuxuan Du"
 date: "2023-10-31"
-output: word_document
+output: github_document
 ---
 
 ## group members
 Yuxuan Du: yd2739
+Tara Zhan: fz2377
+Yaduo Wang: yw4199
+Chenshuo Pan ：cp3384
 
 ## Tentative project title
 
@@ -35,3 +38,13 @@ Also, we need to establish clear classification boundaries for popular and unpop
 Following that, we will explore suitable models for classifying games based on their distinct features. If the selected model offers interpretability, we will also analyze the importance of different features.
 
 ## The planned timeline
+
+We already found dataset from Kaggle. The dataset use Steam API to get datas. They provide the code for using API so it is possible if we want to find latest dataset. 
+
+We plan to do data cleaning and EDA from Nov 13-17. 
+
+Then, we plan to find appropriate models to fit our dataset from Nov 17 - Nov 24.
+
+Then we will make our webpage from Nov 27 - Dec1. 
+
+Then, we will make the video and review our project from Dec 4 -Dec8.
