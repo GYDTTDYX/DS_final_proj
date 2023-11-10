@@ -18,15 +18,15 @@ Wenxin Tian: wt2369
 
 ## Tentative project title
 
-Does trending game have similar characteristics? 
+Predicting Video Game Popularity on STEAM specifically
 
 ## Project motivation
 
-Two of our group members frequently use STEAM. As gamers, we often come across opinions suggesting the existence of a formula that can guarantee the success of games, such as genres like shooting, ball-games, and car-racing games being more likely to succeed. We are curious to know if this statement holds true. Furthermore, even if there are no deterministic factors that directly influence sales, are there any common key characteristics that contribute to the success of games?
+Amidst the burgeoning gaming industry, popular belief posits genres such as shooters, sports, and racing as perennial favorites. As gamers, our team believes that there is a "success formula" to guarantee the success of video games. Our team's avid gaming experience through STEAM has piqued our interest in this hypothesis. Our objective is to dissect and analyze the veracity of such claims and identify any characteristics that signal the popularity of STEAM games.
 
 ## The intended final products
 
-We will introduce a model designed to predict the popularity of games based on various features, including their genre. By utilizing these models, we aim to ascertain whether there are significant features that contribute to a game's popularity. However, we acknowledge that there may be various definitions of popularity, and in our study, we hypothesis it as a combination of both sales and score rankings.
+Our final outcome is to develop a predictive model that evaluates a game's potential popularity based on an array of characteristics, with game genres as a primary focus. This model seeks to uncover pivotal attributes that influence a game's market performance and players’ reception. We acknowledge that there may be various definitions of popularity, and in our study, we hypothesis it as a combination of both sales and score rankings.
 
 ## anticipated data scources
 
