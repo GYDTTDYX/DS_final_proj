@@ -15,6 +15,7 @@ library(caret)
 library(pROC)
 library(randomForest)
 library(e1071)
+library(ROCR)
 ```
 
 ## group members
@@ -70,12 +71,12 @@ df = df|>
 ### definition of popular games
 Since our project want to explore the key feature of popular games, it is necessary to first define the term "popular games":
 We will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
-We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the latest time for refund)
+We only select the games that are positive, very positive, overwhelmingly positive, and mostly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the latest time for refund)
 
 ```{r}
 df_popular = df|>
   subset((positive+negative) > 10)|>
-  subset(positive/(positive+negative) > 0.8)|>
+  subset(positive/(positive+negative) > 0.7)|>
   subset(estimated_owners != "0 - 20000")|>
   subset(estimated_owners != "0 - 0")|>
   subset(median_playtime_forever > 120)
@@ -262,7 +263,7 @@ one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
 
 popular_encoded_df = one_hot_encoded_df|>
   subset((positive+negative) > 10)|>
-  subset(positive/(positive+negative) > 0.8)|>
+  subset(positive/(positive+negative) > 0.7)|>
   subset(estimated_owners != "0 - 20000")|>
   subset(median_playtime_forever > 120)|>
   mutate(popular = 1)
@@ -284,21 +285,26 @@ dataset_without_id_name = encoded_with_label_df|>
 
 ### feature selection
 
-there are tags that have hierarchical relationship(For example, RPG and tactical_rpg, party_based_rpg), we might want to find those related variables and remove some of them. 
+there are tags that have hierarchical relationship, we might want to find those related variables and remove some of them. 
 
 ```{r}
+#this function could help us find tags that be potential subset of other tags. By getting the dot product of two on-hot encoded vector and compare its sum with current column's sum, if they are equal and larger than 0, they could be possible related tags. 
 find_col_pairs = function(df) {
   n = ncol(df)
   result = character(0)
   
   for (i in 1:(n-1)) {
-    for (j in 1:n) {
+    for (j in (i+1):n) {
       col_i = df[, i]
       col_j = df[, j]
       dot_product = sum(col_i * col_j)
-      
-      if (sum(col_i) == dot_product & dot_product != 0 & i != j & sum(col_i) != 0) {
+      col_i_sum = sum(col_i)
+      col_j_sum = sum(col_j)
+      if (col_i_sum == dot_product & dot_product != 0 & col_i_sum != 0) {
         result = c(result, paste(colnames(df)[i], colnames(df)[j], sep = "-"))
+      }
+      if (col_j_sum == dot_product & dot_product != 0 & col_j_sum != 0) {
+        result = c(result, paste(colnames(df)[j], colnames(df)[i], sep = "-"))
       }
     }
   }
@@ -309,12 +315,13 @@ find_col_pairs = function(df) {
 subgroup_features = find_col_pairs(dataset_without_id_name)
 ```
 
-From the result, most feature are sub group of `windows`, `single_player`, `multi_player`, which is expected since most games are categorized into these category. We decide to remove these features since they might affect our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching` , `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+From the result, most feature are sub-group of `windows`, `single_player`, `multi_player`, which is expected since most games are categorized into these category. We decide to remove these features since they might affect our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching` , `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
 
 ```{r}
 dataset_without_id_name = dataset_without_id_name|>
-  subset(select = -c(windows, single_player, multi_player, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support))
+  subset(select = -c(windows, single_player, multi_player, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))
 ```
+
 ### Lasso regression
 Here, we choose lasso regression since it could perform feature selection. 
 ```{r}
@@ -380,6 +387,14 @@ broom::tidy(lasso_fit) |>
 
 ```{r}
 result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = 'response')
+```
+
+```{r}
+prediction_obj = prediction(result, test_y)
+performance_obj = performance(prediction_obj, "tpr", "fpr")
+auc_value = performance(prediction_obj, "auc")@y.values[[1]]
+plot(performance_obj, main = "ROC Curve")
+text(0.6, 0.2, paste("AUC =", round(auc_value, 2)), col = "red")
 ```
 
 ```{r}
