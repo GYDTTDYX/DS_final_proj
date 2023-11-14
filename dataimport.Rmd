@@ -12,9 +12,6 @@ library(wordcloud2)
 library(plotly)
 library(glmnet)
 library(caret)
-library(pROC)
-library(randomForest)
-library(e1071)
 library(ROCR)
 ```
 
@@ -39,29 +36,29 @@ https://www.kaggle.com/datasets/fronkongames/steam-games-dataset
 
 ## Data import and cleaning
 
-There is an inclusion criteria for our analysis:
+In the process of preparing our data for analysis, we have established a set of inclusion and variable selection criteria to ensure the relevance of our study. These criteria are vital to the successful execution of our data science investigation.
 
-We will exclude free games from our analysis. This decision is based on the fact that in free games, in-app purchases often serve as alternatives to traditional game sales. However, since we lack access to data regarding these in-app purchases, including such games in our analysis would be both impractical and imprecise.
+One of the primary inclusion criteria for our analysis is the exclusion of free games from our dataset. This decision is underpinned by the understanding that in free-to-play games, in-app purchases often serve as viable alternatives to traditional game sales. However, due to the unavailability of comprehensive data pertaining to these in-app purchases, their inclusion in our analysis would be both impractical and imprecise.
 
-We will remove columns that contain URLs, as they do not provide useful information for our analysis.
+In addition, we have also opted to remove certain variables from our dataset that are non-essential for our analysis.
 
-Additionally, we will filter out variables related to developers and publishers for two reasons: Firstly, we believe it is challenging, if not impossible, to make predictions using these features. Secondly, we assume that brand effects should be reflected through a combination of game features and keywords, thus including most of the brand impact.
+We eliminate columns containing URLs as they do not contribute meaningful information to our analytical objectives.
 
-Furthermore, we will exclude the average and median playtime in current two weeks since this might not representative enough for old game. Also average playtime forever is not as good as median playtime forever since there are AFK gamers that affect the data. 
+Variables associated with game developers and publishers will be filtered out for two primary reasons. Firstly, we posit that making predictions or quantify the effect of developer names may be challenging, if not unfeasible. Secondly, we hypothesize that brand effects can be more accurately captured through a combination of game features and keywords, for example, there is a tag for independent games, which is the complement of games made by large companies. 
 
-Lastly, we won't include the 'Full Audio Language' variable, as some games may not contain dialogue, making it irrelevant for our analysis.
+Furthermore, we will exclude the variables "Playtime in Current Two Weeks" as it may not be representative for older games, and "Average Playtime Forever" in favor of "Median Playtime Forever" due to potential distortions caused by AFK (Away From Keyboard) gamers. 
 
-We will further solve the data leakage problem and multicollinearity when we fit the model. 
+It is worth noting that we are cognizant of the need to address potential data leakage issues and redundant feature when fitting our model. These aspects will be thoroughly addressed in subsequent stages of our analysis to ensure the robustness of our findings.
 
 ```{r}
 df = read.csv("DATA/games.csv")|>
   janitor::clean_names()|>
-  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, full_audio_languages, average_playtime_forever, peak_ccu))|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))|>
   subset(price > 0)
 ```
 
-Change the format of release date. 
 ```{r}
+#Change the format of release date. 
 df = df|>
   mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
 ```
@@ -69,9 +66,16 @@ df = df|>
 ## EDA
 
 ### definition of popular games
-Since our project want to explore the key feature of popular games, it is necessary to first define the term "popular games":
-We will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
-We only select the games that are positive, very positive, overwhelmingly positive, and mostly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the latest time for refund)
+In our project, the exploration of key features of popular games forms a central objective. To establish a precise definition of "popular games" in the context of our analysis, we will primarily adhere to the standard set by Steam, a prominent gaming platform[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
+According to Steam's rating system, we will categorize games as "popular" if they fall into the following rating categories: mostly positive, positive, very positive, overwhelmingly positive. This approach ensures that we consider user sentiment as a crucial aspect of popularity.
+
+However, we recognize that popularity encompasses more than just ratings; it also pertains to the volume of users who purchase and engage with a game. To account for this broader perspective of popularity, we have incorporated the following criteria:
+
+*Estimated Owners*: We will exclude games with an estimated owner count in the range of 0-0 and 0-20,000. This criteria ensures that we focus on games with a substantial user base.
+
+*Median Playtime*: Games selected for analysis will have a median playtime exceeding 120 minutes. This threshold corresponds to the latest time frame within which Steam allows game refunds. This criterion further refines our definition of popular games by considering active engagement and retention, which are indicative of a game's enduring appeal.
+
+By combining these rating, ownership, and playtime criteria, we aim to create a comprehensive definition of "popular games" that accounts for both user sentiment and the size of the player base, enabling us to explore key features that contribute to a game's popularity in a holistic manner.
 
 ```{r}
 df_popular = df|>
@@ -90,7 +94,14 @@ summary(pull(df_popular, price))
 summary(pull(df_unpopular, price))
 ```
 
-We could observe that the price of popular games are higher than unpopular games in every quadrilles. It is reasonable since game mechanics, animation effects, game optimization are important components of popular games, and these components are costly, which will leads to higher selling prices. 
+Based on tables, it is evident that popular games consistently exhibit higher prices when compared to their less popular counterparts across all quadrants. This trend can be logically attributed to several key factors that play a pivotal role in shaping the pricing dynamics within the gaming industry.
+Game 
+
+*Mechanics*: Popular games often incorporate complex and engaging game mechanics that elevate the overall gaming experience. The development and refinement of such intricate mechanics requires investment in terms of design, testing, and optimization, all of which contribute to higher production costs and reflect on the final price.
+
+*Animation Effects*: The visually captivating animation effects is a hallmark of popular games. These effects enhance immersion and player engagement, but their creation requires the expertise of skilled artists and animators, thereby increasing development expenses.
+
+*Game Optimization*: Popular games prioritize performance optimization to ensure smooth gameplay across a wide range of hardware configurations(although some popular games still have tons of bugs). Achieving such optimization demands rigorous coding and testing efforts, which in turn incur additional costs.
 
 ### price distribution of games with different estimated owners
 ```{r}
@@ -106,9 +117,12 @@ df|>
   geom_boxplot()+
   coord_flip()
 ```
-We could see that the games with more owners have comparatively higher price, but after reaching certain owners, the price of games starts to decrease. 
+
+From the price distribution plot of games categorized by different estimated owner counts, a notable pattern emerges. Specifically, games with a greater number of estimated owners tend to exhibit relatively higher prices. However, an intriguing observation is that once a certain threshold of estimated owners is reached, the prices of games begin to decline.
 
 ### Overall frequency of keywords(genre, categories, tags)
+
+Here, we try to explore the trend of keywords in genre, categories, tags. 
 ```{r}
 categories_freq = df|>
   separate_rows(categories, sep = ",")|>
@@ -122,6 +136,8 @@ categories_freq = df|>
 
 categories_freq
 ```
+
+From the bar plot, it is evident that single-player games have highest frequency in our dataset, this is reasonable since multi-player games require higher optimization, single player games is the best choice for independent game maker. The VR related categories have low frequency in games, this is because the equipment is expensive and the technology is relatively new. 
 
 ```{r}
 genre_freq = df|>
@@ -137,6 +153,8 @@ genre_freq = df|>
 genre_freq
 ```
 
+For the bar plot of genre, besides the most frequency keyword indie, other keywords are common when we talk about games. Sport, Racing, Action, Adventures includes most of the games genere. 
+
 ```{r}
 tags_freq = df|>
   separate_rows(tags, sep = ",")|>
@@ -151,6 +169,8 @@ tags_freq = df|>
 
 tags_freq
 ```
+
+As there are too many tags in steam, we only show most frequent tags, interestingly, we found there are more puzzle games compared to RPG, this might because the development cost of puzzle games are lower than RPG. 
 
 ### Trend of keywords frequency across different years
 
@@ -195,10 +215,18 @@ popular_genres_bar_plot = left_join(genre_freq_year, genre_freq_year_total, by =
 popular_genres_bar_plot
 ```
 
-Observation 需要再加一下
+We found some interesting trend from the line plot:
+
+*Rise of Indie Games*: A prominent observation is the surge in the frequency of the "Indie" genre, particularly after 2012. This phenomenon is likely attributable to the increase in the number of computers per person. These developments have made it easier for independent game developers to create and publish their games. 
+
+*Shift in Genre Popularity*: The line plot also highlights a noteworthy trend in the Action genre. While it remains dominant, it has experienced a gradual decline in frequency over the years. This shift may be influenced by changing player preferences and the emergence of diverse gaming experiences in other genres. It suggests that players are increasingly seeking a wider variety of gaming experiences beyond traditional action games.
+
+*Casual Games on the Rise*: The period from 2012 to 2023 shows an increase in the frequency of "Casual" games. This may be indicative of a growing market for games that offer accessible and relaxed gameplay experiences. This might also indecate people are craving for relaxation instead of stimulation.
+
+*Early Access Strategy*: The "Early Access" games on Steam experienced a notable increase in their frequency. This approach provides independent game developers with the opportunity to release their games in a partially completed state, allowing them to gather player feedback, iterate on their games, and secure investment more easily. The popularity of this strategy underscores its effectiveness in the independent game development ecosystem.
 
 ### Word Cloud visualization
-Wwordcloud could help visualize the the frequency of keywords in popular/unpopular games. 
+Wordcloud could help visualize the the frequency of keywords in different groups. Here, we separately create word cloud for popular and unpopular games. 
 
 ```{r}
 overwhelm_popular_wordcloud = df|>
@@ -228,22 +256,23 @@ popular_tags_wordcloud
 unpopular_tags_wordcloud
 ```
 
-We can observe differences among the three word clouds above.
+The distinctions revealed among the three word clouds are insightful and provide valuable context for understanding the characteristics that differentiate popular and unpopular games:
 
-Firstly, casual games are prevalent among popular games but not as common in unpopular games. This could be because casual games attract a larger user base, increasing the likelihood of meeting the popularity criteria.
+*Prevalence of Adventure Games in Unpopular Games*: Adventure games appear to be more prevalent among unpopular games and are less common in popular games. This discrepancy may stem from the accessibility of game development tools like RPG Maker, which enables the creation of adventure games with relative ease. Consequently, the market may be flooded with a range of adventure games of varying quality, leading to their uneven representation among unpopular titles.
 
-Simultaneously, we notice that the tag "difficult" appears more frequently in the word cloud for popular games. This aligns with reality, as some of the best games in history, such as Elden Ring and Sekiro: Shadows Die Twice, are known for their challenging gameplay.
+*Emphasis on Difficulty in Popular Games*: The word cloud for popular games prominently features the tag "difficult." This aligns with the reality that some of the most highly regarded games in the industry, such as Elden Ring and Sekiro: Shadows Die Twice, are renowned for their challenging gameplay. The presence of this tag underscores the appeal of a high level of difficulty in certain popular titles.
 
-An interesting observation is that the ratio of 2D games to 3D games is higher in popular games compared to unpopular ones. This is reasonable since plot and game mechanics often take precedence in game development. Small studios may struggle to allocate sufficient resources to create high-quality 3D environments, prompting them to opt for 2D games more frequently. This contributes to the higher frequency of 2D games in the popular category.
+*Ratio of 2D to 3D Games*: Notably, the word cloud suggests that the ratio of 2D games to 3D games is higher in popular games compared to unpopular ones. This observation may be attributed to resource constraints faced by smaller game development studios. In many cases, these studios may prioritize the development of engaging plotlines and intricate game mechanics over the creation of elaborate 3D environments, resulting in a higher prevalence of 2D games among popular titles.
 
-Furthermore, anime and cute are tags that exhibit a higher frequency in popular games. The exact reason for this trend is uncertain, but we plan to conduct a more in-depth analysis of games associated with these tags.
+*Popularity of Pixel Graphics*: The higher frequency of the "pixel graphics" tag in popular games is an intriguing finding. Pixel graphics are favored by independent developers as they allow a strong focus on game mechanics. This aligns with the success stories of games like Terraria and Minecraft, which have leveraged pixel graphics to create immersive and engaging gameplay experiences. The appeal of pixel graphics in popular games reflects the importance of gameplay and mechanics in driving their popularity.
 
 ## model fitting
 
 ### Preventing data leakage
 Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. 
 
-We noticed that some tags might cause data leakage in our dataset, we filter them out. These tags includes: `Masterpiece`, `Great Soundtrack`, `Addictive`, `benchmark`, `classic`. It is easy to observe that they are conclusive words that cannot be determined by game producer. 
+During our data preprocessing phase, we identified certain tags that had the potential to introduce data leakage into our dataset. These tags, listed below, were deemed inappropriate for inclusion due to their subjective and conclusive nature, making them difficult for a game producer to ascertain accurately: `Masterpiece`, `Great Soundtrack`, `Addictive`, `benchmark`, `classic`. By excluding these tags from our dataset, we could provide a model that help game makers to determine the game's potential popularity. 
+
 ```{r}
 df_concat = df|>
   mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
@@ -285,7 +314,7 @@ dataset_without_id_name = encoded_with_label_df|>
 
 ### feature selection
 
-there are tags that have hierarchical relationship, we might want to find those related variables and remove some of them. 
+There are some redundant feature in our dataset, we might want to find those variables and remove some of them. 
 
 ```{r}
 #this function could help us find tags that be potential subset of other tags. By getting the dot product of two on-hot encoded vector and compare its sum with current column's sum, if they are equal and larger than 0, they could be possible related tags. 
@@ -315,15 +344,17 @@ find_col_pairs = function(df) {
 subgroup_features = find_col_pairs(dataset_without_id_name)
 ```
 
-From the result, most feature are sub-group of `windows`, `single_player`, `multi_player`, which is expected since most games are categorized into these category. We decide to remove these features since they might affect our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching` , `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+From the result, most feature are sub-group of `windows` which is expected since most games are on windows system. We decide to remove this features since it is not informative to our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching`, `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+
+We identified redundant features such as 'Multi_player' and 'multiplayer,' as well as 'Single_player' and 'singleplayer.' Although they are not completely collinear, it was evident that they provided similar information. To enhance model interpretability, we decided to remove one of each redundant pair.
 
 ```{r}
 dataset_without_id_name = dataset_without_id_name|>
-  subset(select = -c(windows, single_player, multi_player, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))
+  subset(select = -c(windows, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))
 ```
 
 ### Lasso regression
-Here, we choose lasso regression since it could perform feature selection. 
+Here, we choose lasso regression since it could perform feature selection. We uses 5 fold-cv for lambda selecting. We first separate test set and train set to prevent possible data leakage. 
 ```{r}
 #first, we split target and tags, then we split train and test datasets
 dataset_without_id_name= dataset_without_id_name[sample(1:nrow(dataset_without_id_name)), ] 
@@ -385,6 +416,8 @@ broom::tidy(lasso_fit) |>
   theme(legend.position = "none")
 ```
 
+This plot shows the best selection of lambda.
+
 ```{r}
 result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = 'response')
 ```
@@ -409,7 +442,12 @@ result = result|>
   mutate(prediction = factor(prediction, levels = c(1, 0)))
 confusionMatrix(data=pull(result, prediction), reference = pull(result, actual))
 ```
-From the confusion matrix, we could see that our model didn't recognize lots of popular games. However, the amount of false positives is acceptable, this indicates that there might be patterns for unpopular games, using such model we might get some meaningful insight that can help us to identify those games that will not be popular. 
+
+Upon examining the confusion matrix, it becomes evident that our model struggles to correctly classify a substantial number of popular games. However, a noteworthy observation is that the rate of false positives is within an acceptable range. This observation suggests that there may be discernible patterns among unpopular games that our model can capture effectively. As a result, this model holds promise in providing valuable insights for identifying games that are less likely to achieve popularity.
+
+Furthermore, our analysis reveals that the model's performance, as indicated by the p-value, is statistically significant compared to the scenario of having no information. This suggests that our model does contain valuable information that contributes to its predictive capabilities. The significance of the p-value underscores the utility of the model in making informed predictions and decisions.
+
+It is important to note that the model's sensitivity, particularly in recognizing popular games, is relatively low. One plausible explanation for this discrepancy in sensitivity may stem from the imbalanced ratio of popular games to unpopular games within the dataset. The skewed distribution of popular and unpopular games can pose challenges for the model in learning generalized patterns for popular games, leading to reduced sensitivity. It might be useful to perform a down-sampling, but it is unsure whether such down-sampling will cause information loss. 
 
 #### most important tags and their effect
 
@@ -434,4 +472,4 @@ beta_df|>
   coord_flip()
 ```
 
-Tags are reasonable.
+For the coefficient bar plot, we could see some important tags that contribute to popular games. It do fit our experience, social deduction games like Goose Goose Duck is one of the most popular game currently. Dungeons and Dragons and epic is the tags for  Divinity: Original Sin II and Baldur's Gate 3, they gain huge sales and reputation. Besides genre and mechanism, having steam trade cards and could remote play on tablet might act as counfounding since they shows the the meticulousness of game makers, which will potentially lead to a better game. 
