@@ -1,5 +1,5 @@
 ---
-title: "data_import_n_cleaning"
+title: "project report"
 author: "Yuxuan Du"
 date: "2023-11-01"
 output: html_document
@@ -17,6 +17,25 @@ library(randomForest)
 library(e1071)
 ```
 
+## group members
+Yuxuan Du: yd2739
+
+Tara Zhan: fz2377
+
+Yaduo Wang: yw4199
+
+Chenshuo Pan ：cp3384
+
+Wenxin Tian: wt2369
+
+## Project motivation
+
+Amidst the burgeoning gaming industry, popular belief posits genres such as shooters, sports, and racing as perennial favorites. As gamers, our team believes that there is a "success formula" to guarantee the success of video games. Our team's avid gaming experience through STEAM has piqued our interest in this hypothesis. Our objective is to dissect and analyze the veracity of such claims and identify any characteristics that signal the popularity of STEAM games.
+
+## anticipated data scources
+
+https://www.kaggle.com/datasets/fronkongames/steam-games-dataset
+
 ## Data import and cleaning
 
 There is an inclusion criteria for our analysis:
@@ -27,14 +46,16 @@ We will remove columns that contain URLs, as they do not provide useful informat
 
 Additionally, we will filter out variables related to developers and publishers for two reasons: Firstly, we believe it is challenging, if not impossible, to make predictions using these features. Secondly, we assume that brand effects should be reflected through a combination of game features and keywords, thus including most of the brand impact.
 
-Furthermore, we will exclude the average and median playtime within two weeks, these variables is redundant since there are variables for average and median playtime over the game's lifetime, also these variables are biased toward games with high replay value and does not accurately reflect overall popularity.
+Furthermore, we will exclude the average and median playtime in current two weeks since this might not representative enough for old game. Also average playtime forever is not as good as median playtime forever since there are AFK gamers that affect the data. 
 
 Lastly, we won't include the 'Full Audio Language' variable, as some games may not contain dialogue, making it irrelevant for our analysis.
+
+We will further solve the data leakage problem and multicollinearity when we fit the model. 
 
 ```{r}
 df = read.csv("DATA/games.csv")|>
   janitor::clean_names()|>
-  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, full_audio_languages))|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, full_audio_languages, average_playtime_forever, peak_ccu))|>
   subset(price > 0)
 ```
 
@@ -49,13 +70,14 @@ df = df|>
 ### definition of popular games
 Since our project want to explore the key feature of popular games, it is necessary to first define the term "popular games":
 We will mostly follow the standard from steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
-We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the lastest time for refund)
+We only select the games that are positive, very positive, and overwhelmingly positive. But since popular does not only means good rating, but it also means more people buy it and use it. So we further decide the estimated_owner should not be in category of 0 - 20000 and median playtime should be longer than 120min(which is the latest time for refund)
 
 ```{r}
 df_popular = df|>
   subset((positive+negative) > 10)|>
   subset(positive/(positive+negative) > 0.8)|>
   subset(estimated_owners != "0 - 20000")|>
+  subset(estimated_owners != "0 - 0")|>
   subset(median_playtime_forever > 120)
 
 df_unpopular = anti_join(df, df_popular, by="app_id")
@@ -216,7 +238,11 @@ An interesting observation is that the ratio of 2D games to 3D games is higher i
 Furthermore, anime and cute are tags that exhibit a higher frequency in popular games. The exact reason for this trend is uncertain, but we plan to conduct a more in-depth analysis of games associated with these tags.
 
 ## model fitting
-Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. Also, although most tags are completely descriptive words about the games, some of them might cause data leakage, we filter them out from the dataset. These tags includes: Masterpiece, Great Soundtrack, Addictive. It is easy to observe that they are conclusive words. Also, great_soundtrack, batman, tracked_motion_controller_support, tile_matching have no variance in the dataset, we decide to delete them
+
+### Preventing data leakage
+Since it is hard for models to directly analyze keywords as string, we one-hot encoded categories, genres, and tags, which facilitate models to analyze the dataset. 
+
+We noticed that some tags might cause data leakage in our dataset, we filter them out. These tags includes: `Masterpiece`, `Great Soundtrack`, `Addictive`, `benchmark`, `classic`. It is easy to observe that they are conclusive words that cannot be determined by game producer. 
 ```{r}
 df_concat = df|>
   mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
@@ -246,7 +272,7 @@ unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by="app
 
 encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|>
   janitor::clean_names()|>
-  subset(select = -c(positive, negative, estimated_owners, median_playtime_forever, average_playtime_forever, recommendations, user_score, peak_ccu, supported_languages, keywords, addictive, masterpiece, great_soundtrack, batman, tracked_motion_controller_support, tile_matching))|>
+  subset(select = -c(positive, negative, median_playtime_forever, estimated_owners, recommendations, user_score,  supported_languages, keywords, addictive, masterpiece, great_soundtrack, benchmark, classic))|>
   mutate(windows = as.integer(as.logical(windows)))|>
   mutate(mac = as.integer(as.logical(mac)))|>
   mutate(linux = as.integer(as.logical(linux)))
@@ -256,6 +282,39 @@ dataset_without_id_name = encoded_with_label_df|>
   drop_na()
 ```
 
+### feature selection
+
+there are tags that have hierarchical relationship(For example, RPG and tactical_rpg, party_based_rpg), we might want to find those related variables and remove some of them. 
+
+```{r}
+find_col_pairs = function(df) {
+  n = ncol(df)
+  result = character(0)
+  
+  for (i in 1:(n-1)) {
+    for (j in 1:n) {
+      col_i = df[, i]
+      col_j = df[, j]
+      dot_product = sum(col_i * col_j)
+      
+      if (sum(col_i) == dot_product & dot_product != 0 & i != j & sum(col_i) != 0) {
+        result = c(result, paste(colnames(df)[i], colnames(df)[j], sep = "-"))
+      }
+    }
+  }
+  
+  return(result)
+}
+
+subgroup_features = find_col_pairs(dataset_without_id_name)
+```
+
+From the result, most feature are sub group of `windows`, `single_player`, `multi_player`, which is expected since most games are categorized into these category. We decide to remove these features since they might affect our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching` , `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+
+```{r}
+dataset_without_id_name = dataset_without_id_name|>
+  subset(select = -c(windows, single_player, multi_player, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support))
+```
 ### Lasso regression
 Here, we choose lasso regression since it could perform feature selection. 
 ```{r}
@@ -361,63 +420,3 @@ beta_df|>
 ```
 
 Tags are reasonable.
-
-### SVM
-```{r}
-train_x_log = train_x|>
-  mutate(price = log(price))
-
-train_y = train_y|>
-  factor()
-```
-
-```{r}
-svm_model = svm(train_x_log, train_y, kernel = "linear")
-```
-
-```{r}
-test_x_log = test_x|>
-  mutate(price = log(price))
-
-test_y = test_y|>
-  factor()
-```
-
-```{r}
-preicted_labels_svm = predict(svm_model, newdata = test_x_log)
-```
-
-```{r}
-preicted_labels_svm = preicted_labels_svm|>
-  data.frame()|>
-  mutate(actual_y = test_y)|>
-  mutate(different = abs(actual_y != preicted_labels_svm))
-```
-
-```{r}
-acc_svm = sum(pull(preicted_labels_svm, different))/nrow(preicted_labels_svm)
-```
-
-```{r}
-confusionMatrix(data=pull(preicted_labels_svm, preicted_labels_svm), reference = pull(preicted_labels_svm, actual_y))
-```
-
-```{r}
-svm_coef = data.frame(coef(svm_model))
-
-svm_coef_df = data.frame(tags = rownames(svm_coef),
-           coef = pull(svm_coef, coef.svm_model.))|>
-  mutate(abs_coef = abs(coef))|>
-  arrange(desc(abs_coef))
-```
-
-```{r}
-svm_coef_df|>
-  subset(tags != "(Intercept)")|>
-  head(30)|>
-  ggplot(aes(x = reorder(tags, +abs_coef), y = coef))+
-  geom_bar(stat="identity")+
-  coord_flip()
-```
-
-We observed that there are some similar patterns between important feature extracted by Lasso and SVM. 
