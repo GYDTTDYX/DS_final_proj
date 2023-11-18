@@ -103,6 +103,32 @@ Game
 
 *Game Optimization*: Popular games prioritize performance optimization to ensure smooth gameplay across a wide range of hardware configurations(although some popular games still have tons of bugs). Achieving such optimization demands rigorous coding and testing efforts, which in turn incur additional costs.
 
+Also, we used statistical test to test whether there is difference in the two price distribution. 
+
+```{r}
+df_unpopular = df_unpopular|>subset(name != "Ascent Free-Roaming VR Experience")
+
+combined_data = rbind(data.frame(dataset = "unpopular", price = log(df_unpopular$price)),
+                       data.frame(dataset = "popular", price = log(df_popular$price)))
+
+ggplot(data = combined_data, aes(x = price, fill = dataset)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.75)+
+  facet_grid(~dataset)
+
+```
+
+The two distribution loos approximately normal, so we decide to use T-test to test whether two groups's log transformed price have similar distribution.
+
+H0: they have same mean price
+H1: they have different mean price
+
+```{r}
+result <- t.test(log(df_popular$price), log(df_unpopular$price))
+result
+```
+
+The result shows a p-value smaller than 0.05, so we reject the null and conclude that the two groups have different mean price. 
+
 ### price distribution of games with different estimated owners
 ```{r}
 # we filter out Ascent Free-Roaming VR Experience since its price is 1000 dollars, which will make it hard to see any trend from our plot. 
@@ -119,7 +145,6 @@ df|>
 ```
 
 From the price distribution plot of games categorized by different estimated owner counts, a notable pattern emerges. Specifically, games with a greater number of estimated owners tend to exhibit relatively higher prices. However, an intriguing observation is that once a certain threshold of estimated owners is reached, the prices of games begin to decline.
-
 ### Overall frequency of keywords(genre, categories, tags)
 
 Here, we try to explore the trend of keywords in genre, categories, tags. 
