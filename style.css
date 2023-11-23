@@ -5,40 +5,42 @@ body {
 }
 
 #navbar {
-    background-color: orange;
-    color: white;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: transparent; /* Adjust the background color as needed */
+    z-index: 1000; /* Set a higher z-index to ensure the navigation bar appears above other elements */
 }
 
 #logo {
+    color: white;
+    margin-left: 20px;
     font-size: 1.5em;
-    font-weight: bold;
+    float: left;
 }
 
 #menu {
-    display: flex;
-    list-style: none;
+    float: right;
     margin: 0;
     padding: 0;
+    list-style: none;
 }
 
 #menu li {
-    margin-right: 15px;
+    display: inline-block;
+    margin-left: 20px;
 }
 
-#menu a {
+#menu li a {
     text-decoration: none;
     color: white;
-    font-weight: bold;
+    font-size: 1.2em;
 }
 
 .other-section {
     position: relative;
-    height: 100vh;
-    background-image: url('plot/steam.png'); 
+    height: 80vh;
     background-size: cover;
     background-position: center;
     display: flex;
@@ -46,6 +48,8 @@ body {
     justify-content: center;
     color: white;
     margin-bottom: 20px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .other-section::before {
@@ -71,10 +75,94 @@ body {
 .section-content p {
     font-size: 1.2em;
 }
+
+.container {
+    margin-top: 500px;
+    margin-bottom: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .content {
+    display: flex;
+    align-items: center;
+  }
+
+  .title {
+    margin-bottom: 10px; 
+  }
+
+  .text {
+    line-height: 1.5;
+    max-width: 600px;
+  }
+
+  .img {
+    max-width: 50%;
+    height: auto;
+    margin-left: 20px;
+  }
+
+
+
+.card {
+    width: 400px;
+    height: 400px;
+    margin: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(223, 198, 198, 0);
+    transition: transform 0.3s ease-in-out;
+    cursor: pointer;
+    display: inline-block;
+  }
+  
+  .card:hover {
+    transform: scale(1.1);
+  }
+  
+  .card-bg {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  
+  .card-text {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    color: #fff;
+    font-size: 14px;
+  }
+  
+  .card-content {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    background: rgba(238, 151, 151, 0.1);
+    color: #fff;
+  }
+  
+  .card-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+
+
+
+
 .writer-section {
     position: relative;
     height: 100vh;
-    background-image: url('plot/1.jpg');
     background-size: cover;
     background-position: center;
     display: flex;
