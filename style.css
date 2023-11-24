@@ -2,6 +2,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
+    background-color: azure;
 }
 
 #navbar {
@@ -9,6 +10,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
+    align-items: center;
     background-color: transparent; /* Adjust the background color as needed */
     z-index: 1000; /* Set a higher z-index to ensure the navigation bar appears above other elements */
 }
@@ -21,7 +23,8 @@ body {
 }
 
 #menu {
-    float: right;
+    /*float: center;*/
+    text-align:center;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -35,7 +38,7 @@ body {
 #menu li a {
     text-decoration: none;
     color: white;
-    font-size: 1.2em;
+    font-size: 1em;
 }
 
 .other-section {
@@ -77,38 +80,88 @@ body {
 }
 
 .container {
-    margin-top: 500px;
-    margin-bottom: 500px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  margin-top: 500px;
+  margin-bottom: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.motivation {
+  display: flex;
+  align-items: center;
+}
+
+.title {
+  margin-bottom: 10px; 
+}
+
+.text {
+  line-height: 1.5;
+  max-width: 600px;
+}
+
+.img {
+  max-width: 50%;
+  height: auto;
+  margin-left: 20px;
+}
+
+
+  .project-info {
     text-align: center;
-  }
+    margin-bottom: 50px;
+}
 
-  .content {
+hr {
+    border: 2px solid orange; 
+    width: 50%; 
+    margin: 20px auto; 
+}
+
+.toggle-component {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  border-radius: 5px;
+  margin-right: 10px;
+}
+
+.button.active {
+  background-color: #2c3e50;
+}
+
+.content {
+  display: none;
+}
+
+.content.active {
+  display: block;
+}
+
+
+.card-container {
     display: flex;
-    align-items: center;
-  }
+    justify-content: space-around; 
+    flex-wrap: wrap;
+    margin-top: 100px;
+}
 
-  .title {
-    margin-bottom: 10px; 
-  }
 
-  .text {
-    line-height: 1.5;
-    max-width: 600px;
-  }
-
-  .img {
-    max-width: 50%;
-    height: auto;
-    margin-left: 20px;
-  }
 
 
 
 .card {
-    width: 400px;
+    width: 300px;
     height: 400px;
     margin: 10px;
     border-radius: 10px;
@@ -160,15 +213,18 @@ body {
 
 
 
-.writer-section {
+  .writer-section {
     position: relative;
-    height: 100vh;
-    background-size: cover;
+    height: 80vh;
+    background-size: contain; 
     background-position: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     color: white;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-repeat: no-repeat;
 }
 
 .above-images-text, .additional-text {
@@ -189,9 +245,11 @@ body {
 
 .background-images {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     height: 100%;
+    padding: 0 20px;
+    box-sizing: border-box;
 }
 
 .writer-info {
