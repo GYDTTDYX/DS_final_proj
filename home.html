@@ -12,14 +12,14 @@
 <body>
   <div class="navbar">
     <ul class="menu">
-      <line><wd href="#"><i class="fa-solid fa-house-chimney" style="font-size: 36px;"></i></wd></li>
-      <line><wd href="#">Datasources</wd></line>
-      <line><wd href="#">Exploratory Analysis</wd></line>
-      <line><wd href="#">Model Fitting</wd></line>
-      <line><wd href="#">Project Report</wd></line>
-      <line><wd href="#">About us</wd></line>
-      <line><wd href="#"><i class="fa-brands fa-github"></i></wd></line>
-      <line><wd href="#"><i class="fa-regular fa-envelope"></i></wd></line>
+      <li><i class="fa-solid fa-house-chimney" style="font-size: 36px;"></i></li>
+      <li>Datasources</li>
+      <li>Exploratory Analysis</li>
+      <li>Model Fitting</li>
+      <li>Project Report</li>
+      <li>About us</li>
+      <li><i class="fa-brands fa-github"></i></li>
+      <li><i class="fa-regular fa-envelope"></i></li>
     </ul>
   </div>
 
@@ -58,19 +58,16 @@
   </div>
 
   <div class="toggle-component">
-    <button id="videoButton" class="button active" onclick="toggleContent('video')">Video</button>
-    <button id="descriptionButton" class="button" onclick="toggleContent('description')">Final product</button>
-    <div id="videoContent" class="content active">
+    <div class="content.active">
       <iframe width="800" height="500" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0"
         allowfullscreen></iframe>
     </div>
-    <div id="descriptionContent" class="content">
+    <div class="content.active">
       <p>Our final outcome is to develop a predictive model that evaluates a game’s potential popularity based on an array
         of characteristics, with game genres as a primary focus. This model seeks to uncover pivotal attributes that
         influence a game’s market performance and players’ reception. However, we acknowledge that there may be various
         definitions of popularity, and in our study, we hypothesis it as a combination of both sales and score rankings.
       </p>
-      <img src="plot/motivation.png" alt="Motivation Image">  
     </div>
   </div>
 

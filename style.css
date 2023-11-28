@@ -25,12 +25,12 @@ body {
     list-style: none;
 }
 
-.menu line {
+.menu li {
     display: inline-block;
     margin-left: 30px;
 }
 
-.menu line wd {
+.menu li a {
     text-decoration: none;
     color: white;
     font-size: 1.2em;
@@ -116,7 +116,6 @@ body {
 .toggle-component {
   text-align: center;
     margin-top: 20px;
-    text-align: center;
     margin: 50px auto;
     border: 1px solid #ccc;
     padding: 20px;
