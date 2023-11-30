@@ -1,0 +1,58 @@
+---
+title: "data import"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(wordcloud2)
+library(plotly)
+library(glmnet)
+library(caret)
+library(ROCR)
+```
+
+## Data import and cleaning
+
+*Data source* 
+
+We found a [Steam Game Dataset](https://www.kaggle.com/datasets/fronkongames/steam-games-dataset) from Kaggle. It uses gather information from Steam API. 
+
+```{r}
+df = read.csv("DATA/games.csv")|>
+  janitor::clean_names()
+```
+
+In the process of preparing our data for analysis, we have established an inclusion criteria:
+
+```{r}
+df = df|> subset(price > 0)
+```
+
+We excludes free games from the dataset since for free games, the in-app purchases act as total sales in orther games. But such data are owned by different game company, not steam, so including those information would make our analysis biased.
+
+```{r}
+df = df|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))
+  
+```
+
+```{r}
+#Change the format of release date. 
+df = df|>
+  mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
+```
+In addition, we removed certain variables from our dataset in order to make our data tidier.
+
+We delete columns containing URLs since we cannot make an analysis based on them.
+
+Game developers and publishers columns are deleted since firstly, it is not possible to quantify the effect of them only by their names. Also, we hypothesize that the grnral effects of large company are included in our model since there is a tag for independent games, which means games without that tag are made by larger companies.
+
+Furthermore, variables related to "Playtime" were deleted since developer cannot get such information when they develop their games. 
+
+There are still data leakage in games' tag, we will do further feature selection in model fitting part. 

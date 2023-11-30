@@ -1,0 +1,24 @@
+name: "Predicting Video Game Popularity on STEAM specifically"
+output_dir: "."
+navbar:
+  title: "Home"
+  right:
+    - text: "Data Sources"
+      href: data_import.html
+    - text: "Exploratory Analysis"
+      href: exploratory_analysis.html
+    - text: "Model Fitting"
+      href: model_fitting.html
+    - text: "Project Report"
+      href: project_report.html
+    - text: "about us"
+      href: about_us.html
+    - icon: fa-github fa-lg
+      menu: 
+        - text: Final Project Repository 
+          href: https://github.com/GYDTTDYX/DS_final_proj
+
+output:
+  html_document:
+    theme: yeti
+    home: index.html

@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Model Fitting</title>
+
+<script src="site_libs/header-attrs-2.25/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/yeti.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Home</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="data_import.html">Data Sources</a>
+</li>
+<li>
+  <a href="exploratory_analysis.html">Exploratory Analysis</a>
+</li>
+<li>
+  <a href="model_fitting.html">Model Fitting</a>
+</li>
+<li>
+  <a href="project_report.html">Project Report</a>
+</li>
+<li>
+  <a href="about_us.html">about us</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="fa fa-github fa-lg"></span>
+     
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="https://github.com/GYDTTDYX/DS_final_proj">Final Project Repository</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">Model Fitting</h1>
+
+</div>
+
+
+<pre class="r"><code>df = read.csv(&quot;DATA/games.csv&quot;)|&gt;
+  janitor::clean_names()
+
+df = df|&gt; subset(price &gt; 0)
+
+df = df|&gt;
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))
+
+#Change the format of release date. 
+df = df|&gt;
+  mutate(release_date = as.Date(release_date, format = &quot;%b %d, %Y&quot;))</code></pre>
+<div id="model-fitting" class="section level2">
+<h2>model fitting</h2>
+<div id="preventing-data-leakage" class="section level3">
+<h3>Preventing data leakage</h3>
+<pre class="r"><code>df_concat = df|&gt;
+  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = &quot;,&quot;))|&gt;
+  subset(select = -c(categories, genres, tags))</code></pre>
+<p>Since it is hard for models to directly analyze keywords as strings,
+we one-hot encoded categories, genres, and tags. Changing them to
+categorical variables facilitates models to analyze the dataset.</p>
+<pre class="r"><code>keywords_df = df_concat|&gt;
+  subset(select = c(app_id, keywords))|&gt;
+  separate_rows(keywords, sep = &quot;,&quot;)|&gt;
+  distinct(app_id, keywords, .keep_all = TRUE)|&gt;
+  mutate(value = 1)|&gt;
+  subset(keywords != &quot;&quot;)|&gt;
+  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
+
+one_hot_encoded_df = left_join(df_concat, keywords_df, by = &quot;app_id&quot;)
+
+popular_encoded_df = one_hot_encoded_df|&gt;
+  subset((positive+negative) &gt; 10)|&gt;
+  subset(positive/(positive+negative) &gt; 0.7)|&gt;
+  subset(estimated_owners != &quot;0 - 20000&quot;)|&gt;
+  subset(median_playtime_forever &gt; 120)|&gt;
+  mutate(popular = 1)
+
+unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by=&quot;app_id&quot;)|&gt;
+  mutate(popular = 0)
+
+encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|&gt;
+  janitor::clean_names()|&gt;
+  subset(select = -c(positive, negative, median_playtime_forever, estimated_owners, recommendations, user_score,  supported_languages, keywords, addictive, masterpiece, great_soundtrack, benchmark, classic))|&gt;
+  mutate(windows = as.integer(as.logical(windows)))|&gt;
+  mutate(mac = as.integer(as.logical(mac)))|&gt;
+  mutate(linux = as.integer(as.logical(linux)))
+
+dataset_without_id_name = encoded_with_label_df|&gt;
+  subset(select = -c(app_id, name, release_date))|&gt;
+  drop_na()</code></pre>
+<p>During our data preprocessing phase, we identified certain tags that
+had the potential to introduce data leakage into our dataset. These tags
+are not accessible for game makers when they are making games:
+Masterpiece, Great Soundtrack, Addictive, benchmark, classic.</p>
+</div>
+<div id="feature-selection" class="section level3">
+<h3>feature selection</h3>
+<p>There are some redundant feature in our dataset, we might want to
+find those variables and remove some of them.</p>
+<pre class="r"><code>#this function could help us find tags that be potential subset of other tags. By getting the dot product of two on-hot encoded vector and compare its sum with current column&#39;s sum, if they are equal and larger than 0, they could be possible related tags. 
+find_col_pairs = function(df) {
+  n = ncol(df)
+  result = character(0)
+  
+  for (i in 1:(n-1)) {
+    for (j in (i+1):n) {
+      col_i = df[, i]
+      col_j = df[, j]
+      dot_product = sum(col_i * col_j)
+      col_i_sum = sum(col_i)
+      col_j_sum = sum(col_j)
+      if (col_i_sum == dot_product &amp; dot_product != 0 &amp; col_i_sum != 0) {
+        result = c(result, paste(colnames(df)[i], colnames(df)[j], sep = &quot;-&quot;))
+      }
+      if (col_j_sum == dot_product &amp; dot_product != 0 &amp; col_j_sum != 0) {
+        result = c(result, paste(colnames(df)[j], colnames(df)[i], sep = &quot;-&quot;))
+      }
+    }
+  }
+  
+  return(result)
+}
+
+subgroup_features = find_col_pairs(dataset_without_id_name)</code></pre>
+<p>We use dot product of two feature to identify potential subset
+features. From the result, most feature are sub-group of
+<code>windows</code> which is expected since most games are on windows
+system. We decide to remove this features since it is not informative to
+our model. We also found tags <code>batman</code>, <code>fox</code>,
+<code>birds</code>, <code>football_american</code>,
+<code>tile_matching</code>,
+<code>tracked_motion_controller_support</code>only present once,
+<code>coding</code> only appears twice, to make our model more
+generalizable, we decide to drop these columns.</p>
+<pre class="r"><code>dataset_without_id_name = dataset_without_id_name|&gt;
+  subset(select = -c(windows, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))</code></pre>
+<p>We identified redundant features such as ‘Multi_player’ and
+‘multiplayer,’ as well as ‘Single_player’ and ‘singleplayer.’ Although
+they are not completely collinear, it was evident that they provided
+similar information. To enhance model interpretability, we decided to
+remove one of each redundant pair.</p>
+</div>
+<div id="lasso-regression" class="section level3">
+<h3>Lasso regression</h3>
+<p>We choose lasso regression since it could perform classification and
+feature selection simutaneously. We uses 5 fold-cv to select appropriate
+lambda. But before we train our model, we first separate test set and
+train set to prevent possible data leakage.</p>
+<pre class="r"><code>#first, we split target and tags, then we split train and test datasets
+dataset_without_id_name= dataset_without_id_name[sample(1:nrow(dataset_without_id_name)), ] 
+dataset_without_id_name$id = 1:nrow(dataset_without_id_name)
+train = dataset_without_id_name |&gt;
+  sample_frac(0.70)
+test = anti_join(dataset_without_id_name, train, by = &#39;id&#39;)
+
+train = train|&gt;
+  subset(select = -c(id))
+
+test = test|&gt;
+  subset(select = -c(id))
+
+train_x = train|&gt;
+  subset(select = -c(popular))
+train_y = train|&gt;
+  pull(popular)
+
+test_x = test|&gt;
+  subset(select = -c(popular))
+
+test_y = test|&gt;
+  pull(popular)
+
+set.seed(1234)
+foldid = sample(1:5, size = nrow(train_x), replace = TRUE)
+
+lambda = 10^(seq(2, -5, -0.1))
+
+lasso_fit = glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda,
+  alpha=1, 
+  family = &quot;binomial&quot;
+  )
+
+lasso_cv = cv.glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda, 
+  foldid = foldid,
+  alpha=1, 
+  family = &quot;binomial&quot;
+)
+
+lambda_opt = lasso_cv$lambda.min</code></pre>
+<pre class="r"><code>broom::tidy(lasso_fit) |&gt;
+  select(term, lambda, estimate) |&gt;
+  complete(term, lambda, fill = list(estimate = 0) ) |&gt;
+  filter(term != &quot;(Intercept)&quot;) |&gt;
+  ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
+  geom_path() + 
+  geom_vline(xintercept = log(lambda_opt, 10), color = &quot;blue&quot;, size = 1.2) +
+  theme(legend.position = &quot;none&quot;)</code></pre>
+<p><img src="model_fitting_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>This plot shows the best selection of lambda.</p>
+<pre class="r"><code>result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = &#39;response&#39;)</code></pre>
+<pre class="r"><code>prediction_obj = prediction(result, test_y)
+performance_obj = performance(prediction_obj, &quot;tpr&quot;, &quot;fpr&quot;)
+auc_value = performance(prediction_obj, &quot;auc&quot;)@y.values[[1]]
+plot(performance_obj, main = &quot;ROC Curve&quot;)
+text(0.6, 0.2, paste(&quot;AUC =&quot;, round(auc_value, 2)), col = &quot;red&quot;)</code></pre>
+<p><img src="model_fitting_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<pre class="r"><code>result = as.data.frame(result)|&gt;
+  mutate(prediction = ifelse(s1 &gt; 0.5, 1, 0))|&gt;
+  mutate(actual = test_y)|&gt;
+  mutate(difference = ifelse(prediction != actual, 1, 0))
+acc = (nrow(result) - sum(pull(result, difference)))/nrow(result)
+
+result = result|&gt;
+  mutate(actual = factor(actual, levels = c(1, 0)))|&gt;
+  mutate(prediction = factor(prediction, levels = c(1, 0)))
+confusionMatrix(data=pull(result, prediction), reference = pull(result, actual))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction     1     0
+##          1   559   285
+##          0  1089 17056
+##                                           
+##                Accuracy : 0.9276          
+##                  95% CI : (0.9239, 0.9313)
+##     No Information Rate : 0.9132          
+##     P-Value [Acc &gt; NIR] : 2.298e-13       
+##                                           
+##                   Kappa : 0.4142          
+##                                           
+##  Mcnemar&#39;s Test P-Value : &lt; 2.2e-16       
+##                                           
+##             Sensitivity : 0.33920         
+##             Specificity : 0.98356         
+##          Pos Pred Value : 0.66232         
+##          Neg Pred Value : 0.93998         
+##              Prevalence : 0.08679         
+##          Detection Rate : 0.02944         
+##    Detection Prevalence : 0.04445         
+##       Balanced Accuracy : 0.66138         
+##                                           
+##        &#39;Positive&#39; Class : 1               
+## </code></pre>
+<p>From the confusion matrix, we could see that our model didn’t
+recognize lots of popular games. However, the amount of false positives
+is acceptable, this indicates that there might be patterns for unpopular
+games, using such a model we might get some meaningful insight that can
+help us to identify those games that will not be popular.</p>
+<div id="most-important-tags-and-their-effect" class="section level4">
+<h4>most important tags and their effect</h4>
+<p>Here, we will extract the beta from our models and analyze the
+coefficients.</p>
+<pre class="r"><code>betas = coef(lasso_cv, s = lambda_opt)
+
+beta_summary =  summary(betas)
+
+beta_df = data.frame(tags = rownames(betas)[beta_summary$i],
+           Weight = beta_summary$x)|&gt;
+  mutate(abs_weight = abs(Weight))|&gt;
+  arrange(desc(abs_weight))</code></pre>
+<pre class="r"><code>beta_df|&gt;
+  subset(tags != &quot;(Intercept)&quot;)|&gt;
+  head(30)|&gt;
+  ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
+  geom_bar(stat=&quot;identity&quot;)+
+  coord_flip()</code></pre>
+<p><img src="model_fitting_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>For the coefficient bar plot, we could see some important tags that
+contribute to popular games. It does fit our experience, social
+deduction games like Goose Goose Duck are one of the most popular games
+currently. Dungeons and Dragons and Epic are the tags for Divinity:
+Original Sin II and Baldur’s Gate 3, they gain huge sales and
+reputation. Besides genre and mechanism, having Steam trade cards and
+remote play on a tablet might act as confounders since they show the the
+meticulousness of game makers, which will potentially lead to a better
+game.</p>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

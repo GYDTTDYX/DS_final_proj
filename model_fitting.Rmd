@@ -1,0 +1,238 @@
+---
+title: "Model Fitting"
+
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(wordcloud2)
+library(plotly)
+library(glmnet)
+library(caret)
+library(ROCR)
+```
+
+```{r}
+df = read.csv("DATA/games.csv")|>
+  janitor::clean_names()
+
+df = df|> subset(price > 0)
+
+df = df|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))
+
+#Change the format of release date. 
+df = df|>
+  mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
+```
+
+## model fitting
+
+### Preventing data leakage
+
+```{r}
+df_concat = df|>
+  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
+  subset(select = -c(categories, genres, tags))
+```
+
+Since it is hard for models to directly analyze keywords as strings, we one-hot encoded categories, genres, and tags. Changing them to categorical variables facilitates models to analyze the dataset.
+
+```{r}
+keywords_df = df_concat|>
+  subset(select = c(app_id, keywords))|>
+  separate_rows(keywords, sep = ",")|>
+  distinct(app_id, keywords, .keep_all = TRUE)|>
+  mutate(value = 1)|>
+  subset(keywords != "")|>
+  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
+
+one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
+
+popular_encoded_df = one_hot_encoded_df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.7)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(median_playtime_forever > 120)|>
+  mutate(popular = 1)
+
+unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by="app_id")|>
+  mutate(popular = 0)
+
+encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|>
+  janitor::clean_names()|>
+  subset(select = -c(positive, negative, median_playtime_forever, estimated_owners, recommendations, user_score,  supported_languages, keywords, addictive, masterpiece, great_soundtrack, benchmark, classic))|>
+  mutate(windows = as.integer(as.logical(windows)))|>
+  mutate(mac = as.integer(as.logical(mac)))|>
+  mutate(linux = as.integer(as.logical(linux)))
+
+dataset_without_id_name = encoded_with_label_df|>
+  subset(select = -c(app_id, name, release_date))|>
+  drop_na()
+```
+
+During our data preprocessing phase, we identified certain tags that had the potential to introduce data leakage into our dataset. These tags are not accessible for game makers when they are making games: Masterpiece, Great Soundtrack, Addictive, benchmark, classic.
+
+### feature selection
+
+There are some redundant feature in our dataset, we might want to find those variables and remove some of them.
+
+```{r}
+#this function could help us find tags that be potential subset of other tags. By getting the dot product of two on-hot encoded vector and compare its sum with current column's sum, if they are equal and larger than 0, they could be possible related tags. 
+find_col_pairs = function(df) {
+  n = ncol(df)
+  result = character(0)
+  
+  for (i in 1:(n-1)) {
+    for (j in (i+1):n) {
+      col_i = df[, i]
+      col_j = df[, j]
+      dot_product = sum(col_i * col_j)
+      col_i_sum = sum(col_i)
+      col_j_sum = sum(col_j)
+      if (col_i_sum == dot_product & dot_product != 0 & col_i_sum != 0) {
+        result = c(result, paste(colnames(df)[i], colnames(df)[j], sep = "-"))
+      }
+      if (col_j_sum == dot_product & dot_product != 0 & col_j_sum != 0) {
+        result = c(result, paste(colnames(df)[j], colnames(df)[i], sep = "-"))
+      }
+    }
+  }
+  
+  return(result)
+}
+
+subgroup_features = find_col_pairs(dataset_without_id_name)
+```
+
+We use dot product of two feature to identify potential subset features. From the result, most feature are sub-group of `windows` which is expected since most games are on windows system. We decide to remove this features since it is not informative to our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching`, `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+
+```{r}
+dataset_without_id_name = dataset_without_id_name|>
+  subset(select = -c(windows, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))
+```
+
+We identified redundant features such as 'Multi_player' and 'multiplayer,' as well as 'Single_player' and 'singleplayer.' Although they are not completely collinear, it was evident that they provided similar information. To enhance model interpretability, we decided to remove one of each redundant pair.
+
+### Lasso regression
+We choose lasso regression since it could perform classification and feature selection simutaneously. We uses 5 fold-cv to select appropriate lambda. But before we train our model, we first separate test set and train set to prevent possible data leakage. 
+```{r}
+#first, we split target and tags, then we split train and test datasets
+dataset_without_id_name= dataset_without_id_name[sample(1:nrow(dataset_without_id_name)), ] 
+dataset_without_id_name$id = 1:nrow(dataset_without_id_name)
+train = dataset_without_id_name |>
+  sample_frac(0.70)
+test = anti_join(dataset_without_id_name, train, by = 'id')
+
+train = train|>
+  subset(select = -c(id))
+
+test = test|>
+  subset(select = -c(id))
+
+train_x = train|>
+  subset(select = -c(popular))
+train_y = train|>
+  pull(popular)
+
+test_x = test|>
+  subset(select = -c(popular))
+
+test_y = test|>
+  pull(popular)
+
+set.seed(1234)
+foldid = sample(1:5, size = nrow(train_x), replace = TRUE)
+
+lambda = 10^(seq(2, -5, -0.1))
+
+lasso_fit = glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda,
+  alpha=1, 
+  family = "binomial"
+  )
+
+lasso_cv = cv.glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda, 
+  foldid = foldid,
+  alpha=1, 
+  family = "binomial"
+)
+
+lambda_opt = lasso_cv$lambda.min
+```
+
+```{r}
+broom::tidy(lasso_fit) |>
+  select(term, lambda, estimate) |>
+  complete(term, lambda, fill = list(estimate = 0) ) |>
+  filter(term != "(Intercept)") |>
+  ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
+  geom_path() + 
+  geom_vline(xintercept = log(lambda_opt, 10), color = "blue", size = 1.2) +
+  theme(legend.position = "none")
+```
+
+This plot shows the best selection of lambda.
+
+```{r}
+result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = 'response')
+```
+
+```{r}
+prediction_obj = prediction(result, test_y)
+performance_obj = performance(prediction_obj, "tpr", "fpr")
+auc_value = performance(prediction_obj, "auc")@y.values[[1]]
+plot(performance_obj, main = "ROC Curve")
+text(0.6, 0.2, paste("AUC =", round(auc_value, 2)), col = "red")
+```
+
+```{r}
+result = as.data.frame(result)|>
+  mutate(prediction = ifelse(s1 > 0.5, 1, 0))|>
+  mutate(actual = test_y)|>
+  mutate(difference = ifelse(prediction != actual, 1, 0))
+acc = (nrow(result) - sum(pull(result, difference)))/nrow(result)
+
+result = result|>
+  mutate(actual = factor(actual, levels = c(1, 0)))|>
+  mutate(prediction = factor(prediction, levels = c(1, 0)))
+confusionMatrix(data=pull(result, prediction), reference = pull(result, actual))
+```
+
+From the confusion matrix, we could see that our model didn’t recognize lots of popular games. However, the amount of false positives is acceptable, this indicates that there might be patterns for unpopular games, using such a model we might get some meaningful insight that can help us to identify those games that will not be popular.
+
+#### most important tags and their effect
+
+Here, we will extract the beta from our models and analyze the coefficients. 
+```{r}
+betas = coef(lasso_cv, s = lambda_opt)
+
+beta_summary =  summary(betas)
+
+beta_df = data.frame(tags = rownames(betas)[beta_summary$i],
+           Weight = beta_summary$x)|>
+  mutate(abs_weight = abs(Weight))|>
+  arrange(desc(abs_weight))
+```
+
+```{r}
+beta_df|>
+  subset(tags != "(Intercept)")|>
+  head(30)|>
+  ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+
+For the coefficient bar plot, we could see some important tags that contribute to popular games. It does fit our experience, social deduction games like Goose Goose Duck are one of the most popular games currently. Dungeons and Dragons and Epic are the tags for Divinity: Original Sin II and Baldur’s Gate 3, they gain huge sales and reputation. Besides genre and mechanism, having Steam trade cards and remote play on a tablet might act as confounders since they show the the meticulousness of game makers, which will potentially lead to a better game.
