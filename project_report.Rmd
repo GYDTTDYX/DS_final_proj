@@ -1,0 +1,508 @@
+---
+title: "project report"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(wordcloud2)
+library(plotly)
+library(glmnet)
+library(caret)
+library(ROCR)
+```
+
+## group members
+Yuxuan Du: yd2739
+
+Tara Zhan: fz2377
+
+Yaduo Wang: yw4199
+
+Chenshuo Pan ：cp3384
+
+Wenxin Tian: wt2369
+
+## Project motivation
+
+Amidst the burgeoning gaming industry, popular belief posits genres such as shooters, sports, and racing as perennial favorites. As gamers, our team believes that there is a "success formula" to guarantee the success of video games. Our team's avid gaming experience through STEAM has piqued our interest in this hypothesis. Our objective is to dissect and analyze the veracity of such claims and identify any characteristics that signal the popularity of STEAM games.
+
+## anticipated data scources
+
+https://www.kaggle.com/datasets/fronkongames/steam-games-dataset
+
+## Data import and cleaning
+
+In the process of preparing our data for analysis, we have established an inclusion criteria:
+
+We excludes free games from the dataset since for free games, the in-app purchases act as total sales in orther games. But such data are owned by different game company, not steam, so including those information would make our analysis biased.
+
+In addition, we removed certain variables from our dataset in order to make our data tidier.
+
+We delete columns containing URLs since we cannot make an analysis based on them.
+
+Game developers and publishers columns are deleted since firstly, it is not possible to quantify the effect of them only by their names. Also, we hypothesize that the grnral effects of large company are included in our model since there is a tag for independent games, which means games without that tag are made by larger companies.
+
+Furthermore, variables related to "Playtime" were deleted since developer cannot get such information when they develop their games. 
+
+There are still data leakage in games' tag, we will do further feature selection in model fitting part. 
+
+```{r}
+df = read.csv("DATA/games.csv")|>
+  janitor::clean_names()|>
+  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))|>
+  subset(price > 0)
+```
+
+```{r}
+#Change the format of release date. 
+df = df|>
+  mutate(release_date = as.Date(release_date, format = "%b %d, %Y"))
+```
+
+## EDA
+
+### definition of popular games
+We aim to analyze features that makes games popular, so it is important to make a definition of popular games, we will primarily adhere to the standard set by Steam[https://www.reddit.com/r/Steam/comments/ivz45n/what_does_the_steam_ratings_like_very_negative_or/]
+According to Steam's rating system, we classify games as "popular" if they are mostly positive, positive, very positive, and overwhelmingly positive. 
+
+However, popularity means more than ratings; it also means a large player base. To account for this broader perspective of popularity, we included more criteria:
+
+*Estimated Owners*: We only include games with estimated-owners more than 20000 people. 
+
+*Median Playtime*: Games selected for analysis will have a median playtime exceeding 120 minutes. (This is the latest time that allows users to get refunds)
+
+By combining ratings, ownership, and playtime information, we could have a precise definition of "popular games" that fit our experience.
+
+```{r}
+df_popular = df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.7)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(estimated_owners != "0 - 0")|>
+  subset(median_playtime_forever > 120)
+
+df_unpopular = anti_join(df, df_popular, by="app_id")
+```
+
+### price distribution of popular and unpopular games
+```{r}
+summary(pull(df_popular, price))
+summary(pull(df_unpopular, price))
+```
+
+Based on the tables, it is evident that popular games are more expensive than less popular games in every quantile. Such a difference might caused by several reasons.
+
+*Mechanics*: Popular games often have complex game mechanics that improve the gaming experience. However, developing such mechanics requires time, which leads to higher production costs and reflects on the final price.
+
+*Animation Effects*: The captivating animation effects are an important component of good games. The creation requires hiring skilled artists, which will lead to increasing production cost
+
+*Game Optimization*: Popular games need to ensure smooth gameplay(although we have to admit some popular games still have tons of bugs). Optimization requires a talented coder, which increases the production cost. 
+
+Then, we used a statistical test to test whether there is a difference in the two price distributions. 
+
+```{r}
+df_unpopular = df_unpopular|>subset(name != "Ascent Free-Roaming VR Experience")
+
+combined_data = rbind(data.frame(dataset = "unpopular", price = log(df_unpopular$price)),
+                       data.frame(dataset = "popular", price = log(df_popular$price)))
+
+ggplot(data = combined_data, aes(x = price, fill = dataset)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.75)+
+  facet_grid(~dataset)
+
+```
+
+The two distribution looks approximately normal, so we decide to use T-test to test whether two groups's log transformed price have similar distribution.
+
+H0: they have same mean price
+
+H1: they have different mean price
+
+```{r}
+result <- t.test(log(df_popular$price), log(df_unpopular$price))
+result
+```
+
+The result shows a p-value smaller than 0.05, so we reject the null and conclude that the two groups have different mean price. 
+
+### price distribution of games with different estimated owners
+```{r}
+# we filter out Ascent Free-Roaming VR Experience since its price is 1000 dollars, which will make it hard to see any trend from our plot. 
+df|>
+  subset(name != "Ascent Free-Roaming VR Experience")|>
+  separate_wider_delim(cols = estimated_owners, delim = " - ", names = c("estimate_low", "estimate_high"))|>
+  mutate(estimate_low = as.numeric(estimate_low))|>
+  mutate(estimate_high = as.numeric(estimate_high))|>
+  mutate(estimate_mean = (estimate_high + estimate_low)/2)|>
+  mutate(estimate_mean = factor(estimate_mean))|>
+  ggplot(aes(x = estimate_mean, y = price))+
+  geom_boxplot()+
+  coord_flip()
+```
+
+From the price distribution plot we could observe a trend that games with more owners tend to be more expensive. However, we also noticed that a threshold exist: once a certain numbers of owners is reached, the prices of games begin to decline.
+
+### Overall frequency of keywords(genre, categories, tags)
+
+Here, we try to explore the trend of keywords in genre, categories, tags. 
+```{r}
+categories_freq = df|>
+  separate_rows(categories, sep = ",")|>
+  group_by(categories)|>
+  summarise(n_obs = n())|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(categories, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+categories_freq
+```
+
+From the bar plot, it is evident that single-player games have the highest frequency in our dataset, this is reasonable since multi-player games require higher optimization, and single player games are the best choice for independent game maker. The VR-related categories have low frequency in games, this is because the equipment is expensive and the technology is relatively new. 
+
+```{r}
+genre_freq = df|>
+  separate_rows(genres, sep = ",")|>
+  group_by(genres)|>
+  summarise(n_obs = n())|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(genres, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+genre_freq
+```
+
+For the bar plot of genre, besides the most frequency keyword indie, other keywords are common when we talk about games. Sport, Racing, Action, Adventures includes most of the games genere. 
+
+```{r}
+tags_freq = df|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  subset(n_obs >= 5000)|>
+  arrange(desc(n_obs))|>
+  ggplot(aes(x = reorder(tags, +n_obs), y = n_obs))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
+  coord_flip()
+
+tags_freq
+```
+
+As there are too many tags in steam, we only show most frequent tags, interestingly, we found there are more puzzle games compared to RPG, this might because the development cost of puzzle games are lower than RPG. 
+
+### Trend of keywords frequency across different years
+
+It might be informative to visualize the trend change of game genre developed in different years since WOW might be good game at 2000s, while games like Overwatch might be better game in 2020s. 
+
+```{r}
+genre_freq_year = df|>
+  mutate(year = year(release_date))|>
+  separate_rows(genres, sep = ",")|>
+  group_by(year, genres)|>
+  summarise(n_obs = n())|>
+  group_by(year)
+
+genre_freq_year_total = df|>
+  mutate(year = year(release_date))|>
+  separate_rows(genres, sep = ",")|>
+  group_by(year)|>
+  summarise(n_obs_total = n())
+  
+
+genre_freq_year_total|>
+  knitr::kable()
+```
+
+We could see from the table that there are very few games on steam before 2006, genre frequency might be strongly affected by randomness in those years, so we choose only to plot the trend after 2005. 
+```{r}
+#here we limit the year to later than 2002 since steam is lauched in 2002, we think the game before 2002 might be not representative. 
+left_join(genre_freq_year, genre_freq_year_total, by = "year")|>
+  subset(year > 2005)|>
+  mutate(genre_ratio = n_obs/n_obs_total)|>
+  ungroup()|>
+  plot_ly(x = ~year, y = ~genre_ratio, color = ~genres, type = "scatter", mode = "lines+markers",  colors = "viridis")
+```
+
+```{r}
+popular_genres_bar_plot = left_join(genre_freq_year, genre_freq_year_total, by = "year")|>
+  subset(year > 2005)|>
+  mutate(genre_ratio = n_obs/n_obs_total)|>
+  ggplot(aes(x = year, y = genre_ratio, fill = genres)) + 
+  geom_col(position = 'stack', width = 0.6)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))
+popular_genres_bar_plot
+```
+
+We found some interesting trend from the line plot:
+
+*Rise of Indie Games*: We notice that the genre "indie" has increased in recent years, particularly after the year 2012. This increase might caused by more accessible personal computers and no-code platforms like RPG-maker, which made it easier for independent game developers to create their games. 
+
+*Shift in Genre Popularity*: The line plot also shows a decreased frequency of Action games. Although we have to admit it is still one of the most frequent genres, it experienced a decline in recent years. This shift may be caused by changes in player preferences. Since most old games are action games, players might seek new genres when there are available ones. It suggests that players are increasingly seeking a wider variety of genres. 
+
+*Casual Games on the Rise*: We noticed there is an increase in the frequency of "Casual" games. This reveals that as the first generation that is familiar with computer gradually enter the job market, games that are relaxing are preferable for them. 
+
+*Early Access Strategy*: The "Early Access" games on Steam experienced a notable increase. This prosperous new business model in the game area shows the potential of games. 
+
+### Word Cloud visualization
+Wordcloud could help visualize the the frequency of keywords in different groups. Here, we separately create word cloud for popular and unpopular games. 
+
+```{r}
+overwhelm_popular_wordcloud = df|>
+  subset((positive+negative) > 500)|>
+  subset(positive/(positive+negative) > 0.95)|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+
+popular_tags_wordcloud = df_popular|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+
+unpopular_tags_wordcloud = df_unpopular|>
+  separate_rows(tags, sep = ",")|>
+  group_by(tags)|>
+  summarise(n_obs = n())|>
+  wordcloud2()
+```
+
+```{r}
+overwhelm_popular_wordcloud
+popular_tags_wordcloud
+unpopular_tags_wordcloud
+```
+
+We can observe differences among the three word-clouds plots:
+
+The tag "difficult" appears more frequently in the word-cloud for popular and overwhelm popular games. This fit with with reality. Some of the best games in history, such as Elden Ring and Sekiro: Shadows Die Twice, are known for their challenging gameplay.
+
+Another interesting difference is the ratio of 2D games to 3D games is higher in popular games. This is reasonable since small studios may struggle to allocate sufficient resources to create high-quality 3D modeling and they might choose to put the budget in mechanics. This contributes to the higher frequency of 2D games in the popular category.
+
+## model fitting
+
+### Preventing data leakage
+Since it is hard for models to directly analyze keywords as strings, we one-hot encoded categories, genres, and tags. Changing them to categorical variables facilitates models to analyze the dataset. 
+
+During our data preprocessing phase, we identified certain tags that had the potential to introduce data leakage into our dataset. These tags are not accessible for game makers when they are making games: `Masterpiece`, `Great Soundtrack`, `Addictive`, `benchmark`, `classic`.  
+
+```{r}
+df_concat = df|>
+  mutate(keywords = paste(df$categories, df$genres, df$tags, sep = ","))|>
+  subset(select = -c(categories, genres, tags))
+```
+
+```{r}
+keywords_df = df_concat|>
+  subset(select = c(app_id, keywords))|>
+  separate_rows(keywords, sep = ",")|>
+  distinct(app_id, keywords, .keep_all = TRUE)|>
+  mutate(value = 1)|>
+  subset(keywords != "")|>
+  pivot_wider(names_from = keywords, values_from = value, values_fill = 0)
+
+one_hot_encoded_df = left_join(df_concat, keywords_df, by = "app_id")
+
+popular_encoded_df = one_hot_encoded_df|>
+  subset((positive+negative) > 10)|>
+  subset(positive/(positive+negative) > 0.7)|>
+  subset(estimated_owners != "0 - 20000")|>
+  subset(median_playtime_forever > 120)|>
+  mutate(popular = 1)
+
+unpopular_encoded_df = anti_join(one_hot_encoded_df, popular_encoded_df, by="app_id")|>
+  mutate(popular = 0)
+
+encoded_with_label_df = rbind(popular_encoded_df, unpopular_encoded_df)|>
+  janitor::clean_names()|>
+  subset(select = -c(positive, negative, median_playtime_forever, estimated_owners, recommendations, user_score,  supported_languages, keywords, addictive, masterpiece, great_soundtrack, benchmark, classic))|>
+  mutate(windows = as.integer(as.logical(windows)))|>
+  mutate(mac = as.integer(as.logical(mac)))|>
+  mutate(linux = as.integer(as.logical(linux)))
+
+dataset_without_id_name = encoded_with_label_df|>
+  subset(select = -c(app_id, name, release_date))|>
+  drop_na()
+```
+
+### feature selection
+
+There are some redundant feature in our dataset, we might want to find those variables and remove some of them. 
+
+```{r}
+#this function could help us find tags that be potential subset of other tags. By getting the dot product of two on-hot encoded vector and compare its sum with current column's sum, if they are equal and larger than 0, they could be possible related tags. 
+find_col_pairs = function(df) {
+  n = ncol(df)
+  result = character(0)
+  
+  for (i in 1:(n-1)) {
+    for (j in (i+1):n) {
+      col_i = df[, i]
+      col_j = df[, j]
+      dot_product = sum(col_i * col_j)
+      col_i_sum = sum(col_i)
+      col_j_sum = sum(col_j)
+      if (col_i_sum == dot_product & dot_product != 0 & col_i_sum != 0) {
+        result = c(result, paste(colnames(df)[i], colnames(df)[j], sep = "-"))
+      }
+      if (col_j_sum == dot_product & dot_product != 0 & col_j_sum != 0) {
+        result = c(result, paste(colnames(df)[j], colnames(df)[i], sep = "-"))
+      }
+    }
+  }
+  
+  return(result)
+}
+
+subgroup_features = find_col_pairs(dataset_without_id_name)
+```
+
+From the result, most feature are sub-group of `windows` which is expected since most games are on windows system. We decide to remove this features since it is not informative to our model. We also found tags `batman`, `fox`, `birds`, `football_american`, `tile_matching`, `tracked_motion_controller_support`only present once, `coding` only appears twice, to make our model more generalizable, we decide to drop these columns.
+
+We identified redundant features such as 'Multi_player' and 'multiplayer,' as well as 'Single_player' and 'singleplayer.' Although they are not completely collinear, it was evident that they provided similar information. To enhance model interpretability, we decided to remove one of each redundant pair.
+
+```{r}
+dataset_without_id_name = dataset_without_id_name|>
+  subset(select = -c(windows, multiplayer, birds, football_american, fox, batman, coding, tile_matching,tracked_motion_controller_support, singleplayer))
+```
+
+### Lasso regression
+Here, we choose lasso regression since it could perform feature selection. We uses 5 fold-cv for lambda selecting. We first separate test set and train set to prevent possible data leakage. 
+```{r}
+#first, we split target and tags, then we split train and test datasets
+dataset_without_id_name= dataset_without_id_name[sample(1:nrow(dataset_without_id_name)), ] 
+dataset_without_id_name$id = 1:nrow(dataset_without_id_name)
+train = dataset_without_id_name |>
+  sample_frac(0.70)
+test = anti_join(dataset_without_id_name, train, by = 'id')
+
+train = train|>
+  subset(select = -c(id))
+
+test = test|>
+  subset(select = -c(id))
+
+train_x = train|>
+  subset(select = -c(popular))
+train_y = train|>
+  pull(popular)
+
+test_x = test|>
+  subset(select = -c(popular))
+
+test_y = test|>
+  pull(popular)
+
+set.seed(1234)
+foldid = sample(1:5, size = nrow(train_x), replace = TRUE)
+
+lambda = 10^(seq(2, -5, -0.1))
+
+lasso_fit = glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda,
+  alpha=1, 
+  family = "binomial"
+  )
+
+lasso_cv = cv.glmnet(
+  x = as.matrix(train_x), 
+  y = train_y, 
+  lambda = lambda, 
+  foldid = foldid,
+  alpha=1, 
+  family = "binomial"
+)
+
+lambda_opt = lasso_cv$lambda.min
+```
+
+```{r}
+broom::tidy(lasso_fit) |>
+  select(term, lambda, estimate) |>
+  complete(term, lambda, fill = list(estimate = 0) ) |>
+  filter(term != "(Intercept)") |>
+  ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
+  geom_path() + 
+  geom_vline(xintercept = log(lambda_opt, 10), color = "blue", size = 1.2) +
+  theme(legend.position = "none")
+```
+
+This plot shows the best selection of lambda.
+
+```{r}
+result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = 'response')
+```
+
+```{r}
+prediction_obj = prediction(result, test_y)
+performance_obj = performance(prediction_obj, "tpr", "fpr")
+auc_value = performance(prediction_obj, "auc")@y.values[[1]]
+plot(performance_obj, main = "ROC Curve")
+text(0.6, 0.2, paste("AUC =", round(auc_value, 2)), col = "red")
+```
+
+```{r}
+result = as.data.frame(result)|>
+  mutate(prediction = ifelse(s1 > 0.5, 1, 0))|>
+  mutate(actual = test_y)|>
+  mutate(difference = ifelse(prediction != actual, 1, 0))
+acc = (nrow(result) - sum(pull(result, difference)))/nrow(result)
+
+result = result|>
+  mutate(actual = factor(actual, levels = c(1, 0)))|>
+  mutate(prediction = factor(prediction, levels = c(1, 0)))
+confusionMatrix(data=pull(result, prediction), reference = pull(result, actual))
+```
+
+From the confusion matrix, we could see that our model didn't recognize lots of popular games. However, the amount of false positives is acceptable, this indicates that there might be patterns for unpopular games, using such a model we might get some meaningful insight that can help us to identify those games that will not be popular.  
+
+#### most important tags and their effect
+
+Here, we will extract the beta from our models and analyze the coefficients. 
+```{r}
+betas = coef(lasso_cv, s = lambda_opt)
+
+beta_summary =  summary(betas)
+
+beta_df = data.frame(tags = rownames(betas)[beta_summary$i],
+           Weight = beta_summary$x)|>
+  mutate(abs_weight = abs(Weight))|>
+  arrange(desc(abs_weight))
+```
+
+```{r}
+beta_df|>
+  subset(tags != "(Intercept)")|>
+  head(30)|>
+  ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+
+For the coefficient bar plot, we could see some important tags that contribute to popular games. It does fit our experience, social deduction games like Goose Goose Duck are one of the most popular games currently. Dungeons and Dragons and Epic are the tags for  Divinity: Original Sin II and Baldur's Gate 3, they gain huge sales and reputation. Besides genre and mechanism, having Steam trade cards and remote play on a tablet might act as confounders since they show the the meticulousness of game makers, which will potentially lead to a better game. 
+
+## Discussion
+
+### Game Popularity
+Our analysis reveals factors of what constitutes a popular STEAM game. The price distribution indicates that popular games tend to be priced higher, likely due to their more complex game mechanics, superior animation effects, and extensive optimization efforts. These findings align well with industry expectations that higher investment in quality and features often translates into higher price and popularity.
+Further investigations on the frequency of keywords across genres, categories, and tags were enhanced the understanding of popular games. For example, our findings show a high prevalence of single-player games and indie games, especially after 2012, which suggesting players toward prefer to have more diverse and unique gaming experience. Moreover, more players trend to play casual and early access games, which highlighting a market that values accessibility and active involvement in game development.
+
+### Model Performance and Implications
+The Lasso regression model highlights some key factors that can influence the game popularity. Among all, "Social Deduction", "Dungeons and Dragons", and "Epic" stand out significantly, suggesting that both genre and in-game mechanisms play crucial roles in determining a game's success. Interestingly, peripheral features like STEAM trading cards and tablet playability that reflect developer's attention to details is correlated with overall game quality and affect the game’s success eventually. 
+There are some limitations in sensitivity while identifying the game popularity, which is likely due to imbalanced datasets. So, further accurate modeling and sampling approaches are required to better identify the game popularity.
+
+### Future Research
+Since the indie and casual games became more popular, suggesting players wish to have more identical and relaxed experiences. While the popularity of early access games indicates the acceptance of participatory development models. As a result, games need to follow the costumers’ feedback to be success. 
+
+## Conclusion
+Our analysis overviewed factors drive game popularity on STEAM specially. Besides high-quality mechanics and production of games is the key for game’s success, the rising popularity of indie and casual games displays a new trend in gaming market and a shift in players’ preference. 
+Our study findings provide insights for game-developers in strategizing game design and marketing. Additionally, investigating the development of game monetization strategies, especially in the free-to-play sector, can yield enlightening insights for the gaming industry as a whole.
