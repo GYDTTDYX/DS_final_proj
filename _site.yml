@@ -11,8 +11,8 @@ navbar:
       href: model_fitting.html
     - text: "Project Report"
       href: project_report.html
-    - text: "about us"
-      href: about_us.html
+    - text: "About Us"
+      href: About_us.html
     - text: "Shiny App"
       href: https://panchenshuo.shinyapps.io/ds_shiny/
     - icon: fa-github fa-lg

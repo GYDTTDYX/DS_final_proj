@@ -11,7 +11,7 @@
 
 
 
-<title>data import</title>
+<title>About Us</title>
 
 <script src="site_libs/header-attrs-2.25/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -29,11 +29,7 @@
        h6 {font-size: 12px;}
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
-<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
-<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
-<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<script src="site_libs/navigation-1.1/codefolding.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
@@ -222,73 +218,7 @@ $(document).ready(function () {
 </style>
 
 <!-- code folding -->
-<style type="text/css">
-.code-folding-btn { margin-bottom: 4px; }
-</style>
 
-
-
-<style type="text/css">
-
-#TOC {
-  margin: 25px 0px 20px 0px;
-}
-@media (max-width: 768px) {
-#TOC {
-  position: relative;
-  width: 100%;
-}
-}
-
-@media print {
-.toc-content {
-  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
-  float: right;
-}
-}
-
-.toc-content {
-  padding-left: 30px;
-  padding-right: 40px;
-}
-
-div.main-container {
-  max-width: 1200px;
-}
-
-div.tocify {
-  width: 20%;
-  max-width: 260px;
-  max-height: 85%;
-}
-
-@media (min-width: 768px) and (max-width: 991px) {
-  div.tocify {
-    width: 25%;
-  }
-}
-
-@media (max-width: 767px) {
-  div.tocify {
-    width: 100%;
-    max-width: none;
-  }
-}
-
-.tocify ul, .tocify li {
-  line-height: 20px;
-}
-
-.tocify-subheader .tocify-item {
-  font-size: 0.90em;
-}
-
-.tocify .list-group-item {
-  border-radius: 0px;
-}
-
-
-</style>
 
 
 
@@ -298,16 +228,6 @@ div.tocify {
 
 
 <div class="container-fluid main-container">
-
-
-<!-- setup 3col/9col grid for toc_float and main content  -->
-<div class="row">
-<div class="col-xs-12 col-sm-4 col-md-3">
-<div id="TOC" class="tocify">
-</div>
-</div>
-
-<div class="toc-content col-xs-12 col-sm-8 col-md-9">
 
 
 
@@ -365,61 +285,29 @@ div.tocify {
 
 <div id="header">
 
-<div class="btn-group pull-right float-right">
-<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
-<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
-<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
-<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
-</ul>
-</div>
 
 
-
-<h1 class="title toc-ignore">data import</h1>
+<h1 class="title toc-ignore">About Us</h1>
 
 </div>
 
 
-<div id="data-import-and-cleaning" class="section level2">
-<h2>Data import and cleaning</h2>
-<p><em>Data source</em></p>
-<p>We found a <a
-href="https://www.kaggle.com/datasets/fronkongames/steam-games-dataset">Steam
-Game Dataset</a> from Kaggle. It uses gather information from Steam
-API.</p>
-<pre class="r"><code>df = read.csv(&quot;DATA/games.csv&quot;)|&gt;
-  janitor::clean_names()</code></pre>
-<p>In the process of preparing our data for analysis, we have
-established an inclusion criteria:</p>
-<pre class="r"><code>df = df|&gt; subset(price &gt; 0)</code></pre>
-<p>We excludes free games from the dataset since for free games, the
-in-app purchases act as total sales in orther games. But such data are
-owned by different game company, not steam, so including those
-information would make our analysis biased.</p>
-<pre class="r"><code>df = df|&gt;
-  subset(select = -c(dlc_count, about_the_game, reviews, header_image, website, support_url, support_email, metacritic_score, metacritic_url, notes, developers, publishers, screenshots, movies, score_rank, average_playtime_two_weeks, median_playtime_two_weeks, average_playtime_forever, peak_ccu, full_audio_languages))</code></pre>
-<pre class="r"><code>#Change the format of release date. 
-df = df|&gt;
-  mutate(release_date = as.Date(release_date, format = &quot;%b %d, %Y&quot;))</code></pre>
-<p>In addition, we removed certain variables from our dataset in order
-to make our data tidier.</p>
-<p>We delete columns containing URLs since we cannot make an analysis
-based on them.</p>
-<p>Game developers and publishers columns are deleted since firstly, it
-is not possible to quantify the effect of them only by their names.
-Also, we hypothesize that the grnral effects of large company are
-included in our model since there is a tag for independent games, which
-means games without that tag are made by larger companies.</p>
-<p>Furthermore, variables related to “Playtime” were deleted since
-developer cannot get such information when they develop their games.</p>
-<p>There are still data leakage in games’ tag, we will do further
-feature selection in model fitting part.</p>
+<div id="group-members" class="section level2">
+<h2>Group Members</h2>
+<p>Yuxuan Du: yd2739</p>
+<p>Email: yd2739@cumc.columbia.edu</p>
+<p>Tara Zhan: fz2377</p>
+<p>Email: fz2377@cumc.columbia.edu</p>
+<p>Yaduo Wang: yw4199</p>
+<p>Email: yw4199@cumc.columbia.edu</p>
+<p>Chenshuo Pan ：cp3384</p>
+<p>Email: cp3384@cumc.columbia.edu</p>
+<p>Wenxin Tian: wt2369</p>
+<p>Email: wt2369@cumc.columbia.edu</p>
 </div>
 
 
 
-</div>
-</div>
 
 </div>
 
@@ -451,41 +339,7 @@ $(document).ready(function () {
 </script>
 
 <!-- code folding -->
-<script>
-$(document).ready(function () {
-  window.initializeCodeFolding("hide" === "show");
-});
-</script>
 
-<script>
-$(document).ready(function ()  {
-
-    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
-    $('.unlisted.unnumbered').addClass('toc-ignore')
-
-    // move toc-ignore selectors from section div to header
-    $('div.section.toc-ignore')
-        .removeClass('toc-ignore')
-        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
-
-    // establish options
-    var options = {
-      selectors: "h1,h2,h3",
-      theme: "bootstrap3",
-      context: '.toc-content',
-      hashGenerator: function (text) {
-        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
-      },
-      ignoreSelector: ".toc-ignore",
-      scrollTo: 0
-    };
-    options.showAndHide = true;
-    options.smoothScroll = true;
-
-    // tocify
-    var toc = $("#TOC").tocify(options).data("toc-tocify");
-});
-</script>
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>
