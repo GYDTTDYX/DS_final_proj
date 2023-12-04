@@ -13,6 +13,8 @@ navbar:
       href: project_report.html
     - text: "about us"
       href: about_us.html
+    - text: "Shiny App"
+      href: https://panchenshuo.shinyapps.io/ds_shiny/
     - icon: fa-github fa-lg
       menu: 
         - text: Final Project Repository 
