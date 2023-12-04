@@ -126,7 +126,7 @@ body {
   display: none;
 }
 
-.content.active {
+.content {
   display: block;
 }
 
