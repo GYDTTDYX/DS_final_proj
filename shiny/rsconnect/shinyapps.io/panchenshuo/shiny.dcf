@@ -1,0 +1,10 @@
+name: shiny
+title:
+username: panchenshuo
+account: panchenshuo
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10705252
+bundleId: 8002000
+url: https://panchenshuo.shinyapps.io/shiny/
+version: 1
