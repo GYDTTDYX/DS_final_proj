@@ -212,10 +212,7 @@ body {
 
 .above-images-text {
     top: 30%; 
-}
-
-.additional-text {
-    bottom: 30%;
+    bottom: 10%;
 }
 
 .background-images {
