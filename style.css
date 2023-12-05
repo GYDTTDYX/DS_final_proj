@@ -13,7 +13,7 @@ body {
     left: 0;
     width: 100%;
     align-items: center;
-    background-color: transparent; /* Adjust the background color as needed */
+    background-color: transparent; 
     z-index: 1000; /* Set a higher z-index to ensure the navigation bar appears above other elements */
 }
 
@@ -54,7 +54,7 @@ body {
   max-width: 800px;
   margin: 0 auto;
   position: relative; /* add position relative */
-  z-index: 1; /* set a higher z-index to ensure it's above the background */
+  z-index: 1000; 
 }
 
 .section-content h2 {
@@ -108,22 +108,19 @@ body {
 }
 
 .hr {
+  /*Dividing line */
     border: 2px solid orange; 
     width: 50%; 
     margin: 20px auto; 
 }
 
-.toggle-component {
+.video-component {
   text-align: center;
     margin-top: 20px;
     margin: 50px auto;
     border: 1px solid #ccc;
     padding: 20px;
     width: 60%;
-}
-
-.content {
-  display: none;
 }
 
 .content {
@@ -176,7 +173,7 @@ body {
     flex-direction: column;
     justify-content: flex-end;
     padding: 20px;
-    background: rgba(238, 151, 151, 0.1);
+    background: rgba(238, 151, 151, 0.068);
     color: #fff;
   }
   
@@ -246,8 +243,8 @@ body {
 
 
 footer {
-  background-color: #666;
-  color: #fff;
+  background-color: grey;
+  color: white;
   text-align: center;
   padding: 20px;
   position: absolute;
