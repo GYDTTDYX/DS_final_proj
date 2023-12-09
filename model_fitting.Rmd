@@ -180,7 +180,8 @@ broom::tidy(lasso_fit) |>
   ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
   geom_path() + 
   geom_vline(xintercept = log(lambda_opt, 10), color = "blue", size = 1.2) +
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  labs(x = "Log lambda", y = "Coefficient Estimate", title = "Coefficient estimate at different lambda")
 ```
 
 This plot shows the best selection of lambda.
@@ -232,7 +233,8 @@ beta_df|>
   head(30)|>
   ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
   geom_bar(stat="identity")+
-  coord_flip()
+  coord_flip()+
+  labs(x = "Weight", y = "Tags", title = "Weight of different tags")
 ```
 
 For the coefficient bar plot, we could see some important tags that contribute to popular games. It does fit our experience, social deduction games like Goose Goose Duck are one of the most popular games currently. Dungeons and Dragons and Epic are the tags for Divinity: Original Sin II and Baldur’s Gate 3, they gain huge sales and reputation. Besides genre and mechanism, having Steam trade cards and remote play on a tablet might act as confounders since they show the the meticulousness of game makers, which will potentially lead to a better game.

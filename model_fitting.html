@@ -543,7 +543,8 @@ lambda_opt = lasso_cv$lambda.min</code></pre>
   ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
   geom_path() + 
   geom_vline(xintercept = log(lambda_opt, 10), color = &quot;blue&quot;, size = 1.2) +
-  theme(legend.position = &quot;none&quot;)</code></pre>
+  theme(legend.position = &quot;none&quot;)+
+  labs(x = &quot;Log lambda&quot;, y = &quot;Coefficient Estimate&quot;, title = &quot;Coefficient estimate at different lambda&quot;)</code></pre>
 <p><img src="model_fitting_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
 <p>This plot shows the best selection of lambda.</p>
 <pre class="r"><code>result = predict(lasso_fit, s = lambda_opt, newx = as.matrix(test_x), type = &#39;response&#39;)</code></pre>
@@ -612,7 +613,8 @@ beta_df = data.frame(tags = rownames(betas)[beta_summary$i],
   head(30)|&gt;
   ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
   geom_bar(stat=&quot;identity&quot;)+
-  coord_flip()</code></pre>
+  coord_flip()+
+  labs(x = &quot;Weight&quot;, y = &quot;Tags&quot;, title = &quot;Weight of different tags&quot;)</code></pre>
 <p><img src="model_fitting_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
 <p>For the coefficient bar plot, we could see some important tags that
 contribute to popular games. It does fit our experience, social

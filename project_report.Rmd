@@ -119,7 +119,8 @@ combined_data = rbind(data.frame(dataset = "unpopular", price = log(df_unpopular
 
 ggplot(data = combined_data, aes(x = price, fill = dataset)) +
   geom_histogram(aes(y = ..density..), binwidth = 0.75)+
-  facet_grid(~dataset)
+  facet_grid(~dataset)+
+  labs(x = "Log price", y = "Frequency", title = "distribution of price of popular and unpopular games")
 
 ```
 
@@ -148,7 +149,8 @@ df|>
   mutate(estimate_mean = factor(estimate_mean))|>
   ggplot(aes(x = estimate_mean, y = price))+
   geom_boxplot()+
-  coord_flip()
+  coord_flip()+
+  labs(x = "Estimated owners", y = "Price", title = "Distribution of price of games with different number of owners")
 ```
 
 From the price distribution plot we could observe a trend that games with more owners tend to be more expensive. However, we also noticed that a threshold exist: once a certain numbers of owners is reached, the prices of games begin to decline.
@@ -165,7 +167,8 @@ categories_freq = df|>
   ggplot(aes(x = reorder(categories, +n_obs), y = n_obs))+
   geom_bar(stat="identity")+
   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
-  coord_flip()
+  coord_flip()+
+  labs(x = "kerwords", y = "Count", title = "Keywords frequency")
 
 categories_freq
 ```
@@ -181,7 +184,8 @@ genre_freq = df|>
   ggplot(aes(x = reorder(genres, +n_obs), y = n_obs))+
   geom_bar(stat="identity")+
   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
-  coord_flip()
+  coord_flip()+
+  labs(x = "Genres", y = "Count", title = "Genres frequency")
 
 genre_freq
 ```
@@ -198,7 +202,8 @@ tags_freq = df|>
   ggplot(aes(x = reorder(tags, +n_obs), y = n_obs))+
   geom_bar(stat="identity")+
   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1)) +
-  coord_flip()
+  coord_flip()+
+  labs(x = "tags", y = "Count", title = "Tags frequency")
 
 tags_freq
 ```
@@ -244,7 +249,8 @@ popular_genres_bar_plot = left_join(genre_freq_year, genre_freq_year_total, by =
   mutate(genre_ratio = n_obs/n_obs_total)|>
   ggplot(aes(x = year, y = genre_ratio, fill = genres)) + 
   geom_col(position = 'stack', width = 0.6)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust=1))+
+  labs(x = "year", y = "Genre ratio", title = "Genre ratio frequency barplot")
 popular_genres_bar_plot
 ```
 
@@ -442,7 +448,8 @@ broom::tidy(lasso_fit) |>
   ggplot(aes(x = log(lambda, 10), y = estimate, group = term, color = term)) + 
   geom_path() + 
   geom_vline(xintercept = log(lambda_opt, 10), color = "blue", size = 1.2) +
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  labs(x = "Log lambda", y = "Coefficient Estimate", title = "Coefficient estimate at different lambda")
 ```
 
 This plot shows the best selection of lambda.
@@ -494,7 +501,8 @@ beta_df|>
   head(30)|>
   ggplot(aes(x = reorder(tags, +abs_weight), y = Weight))+
   geom_bar(stat="identity")+
-  coord_flip()
+  coord_flip()+
+  labs(x = "Weight", y = "Tags", title = "Weight of different tags")
 ```
 
 For the coefficient bar plot, we could see some important tags that contribute to popular games. It does fit our experience, social deduction games like Goose Goose Duck are one of the most popular games currently. Dungeons and Dragons and Epic are the tags for  Divinity: Original Sin II and Baldur's Gate 3, they gain huge sales and reputation. Besides genre and mechanism, having Steam trade cards and remote play on a tablet might act as confounders since they show the the meticulousness of game makers, which will potentially lead to a better game. 
